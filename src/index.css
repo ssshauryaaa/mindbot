@@ -288,3 +288,73 @@ h1,h2,h3,h4,h5,h6 {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE & TABLET RESPONSIVENESS
+═══════════════════════════════════════════════════════════════ */
+
+/* Use dynamic viewport height to handle mobile browser chrome */
+html {
+  height: -webkit-fill-available;
+}
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
+}
+
+/* All interactive elements get better tap targets on mobile */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe-area padding for iPhone notch / home bar */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Mobile bottom nav dock */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+  background: rgba(6, 6, 10, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+@media (max-width: 639px) {
+  /* Show mobile bottom nav, hide desktop sidebar */
+  .mobile-bottom-nav { display: flex; }
+  .desktop-sidebar   { display: none !important; }
+
+  /* Prevent horizontal overflow on small screens */
+  body { overflow-x: hidden; }
+
+  /* Reduce glass input padding on small screens */
+  .glass-input textarea { font-size: 16px !important; } /* prevents iOS zoom on focus */
+
+  /* Input box safe area at bottom */
+  .input-safe-area {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  /* Hide fine scrollbars on touch devices */
+  * { scrollbar-width: none; }
+  ::-webkit-scrollbar { display: none; }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* Tablet: show desktop sidebar but condensed */
+  .desktop-sidebar { display: flex !important; }
+  .mobile-bottom-nav { display: none !important; }
+}

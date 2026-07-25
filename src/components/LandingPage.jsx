@@ -1,4 +1,4 @@
-import React, { useRef, Suspense, useState, useCallback } from 'react';
+import React, { useRef, Suspense, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { Environment, ContactShadows } from '@react-three/drei';
@@ -11,8 +11,15 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [animating, setAnimating] = useState(false);
   const pointer = useRef({ x: 0, y: 0 });
-
   const animationFrame = useRef(null);
+
+  // Determine if we're on a narrow mobile screen
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const handlePointerMove = (e) => {
     if (animationFrame.current) return;
@@ -56,7 +63,7 @@ export default function LandingPage() {
 
       {/* Layer 3 — 3D canvas */}
       <div className="absolute inset-0" style={{ zIndex: 2 }}>
-        <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, 0.15, 5], fov: 32 }} style={{ cursor: 'none' }}>
+        <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, 0.15, 5], fov: isMobile ? 42 : 32 }} style={{ cursor: 'none' }}>
           <ambientLight intensity={animating ? 0.8 : 0.15} />
           <pointLight position={[2.7, 0.7, 1.6]} intensity={14} color="#ff4d8d" distance={2.6} />
           <pointLight position={[1.9, 0.1, 1.4]} intensity={10} color="#38c9ff" distance={2.6} />
@@ -87,14 +94,14 @@ export default function LandingPage() {
           transition: 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <div className="max-w-lg px-8 sm:px-12 md:px-20">
-          <p className="text-xs sm:text-sm font-medium tracking-[0.25em] uppercase text-white/50 mb-5">
+        <div className="max-w-lg px-6 sm:px-8 md:px-20">
+          <p className="text-xs sm:text-sm font-medium tracking-[0.25em] uppercase text-white/50 mb-3 sm:mb-5">
             Synaptica
           </p>
-          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-semibold leading-[1.15] tracking-tight mb-6">
+          <h1 className="text-xl sm:text-3xl md:text-[2.75rem] font-semibold leading-[1.15] tracking-tight mb-3 sm:mb-6">
             Where human intelligence meets its artificial counterpart
           </h1>
-          <p className="text-white/65 text-base leading-relaxed max-w-md">
+          <p className="hidden sm:block text-white/65 text-base leading-relaxed max-w-md">
             Design and develop an AI-powered chatbot built around the
             theme of duality — human and artificial intelligence working
             in genuine collaboration.
@@ -104,7 +111,7 @@ export default function LandingPage() {
 
       {/* Center: Signature + Button */}
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-8 pointer-events-none"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-5 sm:gap-8 pointer-events-none"
         style={{
           zIndex: 10,
           opacity: animating ? 0 : 1,
@@ -112,10 +119,10 @@ export default function LandingPage() {
           transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <div className="pointer-events-auto flex justify-center items-center w-full">
+        <div className="pointer-events-auto flex justify-center items-center w-full px-4">
           <Signature
             text="Mindbot"
-            fontSize={120}
+            fontSize={isMobile ? 68 : 120}
             color="#ffffff"
             duration={2.5}
             fontUrl="/LastoriaBoldRegular.otf"

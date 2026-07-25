@@ -91,16 +91,38 @@ function LogoMark({ size = 48 }) {
 function Sidebar({ onNavigate }) {
   const navigate = useNavigate();
   const dockItems = [
-    { title: 'New Session',  icon: <Plus className="h-full w-full" />,         onClick: () => onNavigate('new') },
-    { title: 'History',      icon: <Bookmark className="h-full w-full" />,     onClick: () => {} },
-    { title: 'Landing Page', icon: <Compass className="h-full w-full" />,      onClick: () => navigate('/landing') },
-    { title: 'All Tools',    icon: <LayoutGrid className="h-full w-full" />,   onClick: () => {} },
+    { title: 'New Session',  icon: <Plus className="h-full w-full" />,          onClick: () => onNavigate('new') },
+    { title: 'History',      icon: <Bookmark className="h-full w-full" />,      onClick: () => {} },
+    { title: 'Landing Page', icon: <Compass className="h-full w-full" />,       onClick: () => navigate('/landing') },
+    { title: 'All Tools',    icon: <LayoutGrid className="h-full w-full" />,    onClick: () => {} },
     { title: 'More',         icon: <MoreHorizontal className="h-full w-full" />, onClick: () => {} },
   ];
+
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
-      <FloatingDock items={dockItems} orientation="vertical" />
-    </div>
+    <>
+      {/* Desktop / Tablet — vertical dock on the left */}
+      <div className="desktop-sidebar fixed left-4 top-1/2 -translate-y-1/2 z-50">
+        <FloatingDock items={dockItems} orientation="vertical" />
+      </div>
+
+      {/* Mobile — horizontal dock pinned to bottom */}
+      <nav className="mobile-bottom-nav items-center justify-around px-2 py-2">
+        {dockItems.map(item => (
+          <button
+            key={item.title}
+            onClick={item.onClick}
+            title={item.title}
+            className="flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-xl text-white/50 hover:text-white/90 active:scale-90 transition-all cursor-pointer"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <span className="w-5 h-5">{item.icon}</span>
+            <span className="text-[9px] font-medium tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {item.title.split(' ')[0]}
+            </span>
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }
 
@@ -479,12 +501,12 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
         style={{ fontFamily: 'Inter, sans-serif', minHeight: large ? 72 : 44 }}
       />
 
-      <div className="flex items-center justify-between px-4 pb-3.5 pt-1 gap-2">
+      <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 pb-3.5 pt-1 gap-2">
         <button onClick={() => onModeChange(activeMode === 'Auto' ? 'Focused' : 'Auto')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <Sparkles className="w-3.5 h-3.5 text-white/70" strokeWidth={1.5}/>
-          <span>{activeMode}</span>
+          <span className="hidden xs:inline">{activeMode}</span>
           <ChevronDown className="w-3 h-3 text-white/50"/>
         </button>
 
@@ -593,7 +615,7 @@ function UserMessage({ msg }) {
       )}
       {msg.text && (
         <div
-          className="max-w-md text-sm text-white/90 px-4 py-2.5 rounded-2xl"
+          className="max-w-[min(28rem,calc(100vw-2rem))] text-sm text-white/90 px-4 py-2.5 rounded-2xl"
           style={{
             background: 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.14)',
@@ -727,9 +749,9 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
       )}
 
       {/* Action bar */}
-      <div className="flex items-center justify-between max-w-3xl pt-1">
+      <div className="flex flex-wrap items-center justify-between max-w-3xl pt-1 gap-y-1">
         {/* Left actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <ActionBtn title="Share" onClick={shareResponse}>
             <Share2 className="w-3.5 h-3.5" />
           </ActionBtn>
@@ -950,7 +972,7 @@ export default function ConversationPage() {
   };
 
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-black">
+    <div className="relative flex bg-black" style={{ height: '100dvh', width: '100vw', overflow: 'hidden' }}>
       <BeamBackground />
 
       <Sidebar onNavigate={action => { if (action === 'new') resetSession(); }} />
@@ -963,19 +985,19 @@ export default function ConversationPage() {
             <motion.div key="welcome"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.35 }}
-              className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
+              className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20 sm:pb-12">
 
               <motion.div
                 initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.05, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-7">
-                <LogoMark size={48} />
+                className="mb-5 sm:mb-7">
+                <LogoMark size={36} />
               </motion.div>
 
               <motion.h1
                 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.5 }}
-                className="text-4xl sm:text-5xl font-light text-white text-center mb-10"
+                className="text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2"
                 style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
                 What can I help you<br/><span style={{ opacity: 0.45 }}>explore today?</span>
               </motion.h1>
@@ -983,7 +1005,7 @@ export default function ConversationPage() {
               <motion.div
                 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.22, duration: 0.5 }}
-                className="w-full max-w-2xl mb-7">
+                className="w-full max-w-2xl mb-7 px-1 sm:px-0">
                 <InputBox
                   value={inputVal} onChange={setInputVal}
                   onSend={sendMessage} large
@@ -1002,11 +1024,13 @@ export default function ConversationPage() {
               className="flex-1 flex flex-col overflow-hidden">
 
               {/* Message thread */}
-              <div className="flex-1 overflow-y-auto pb-40" style={{ paddingLeft: '5rem', paddingRight: '4rem', paddingTop: '2.5rem' }}>
-                <div className="max-w-3xl mx-auto space-y-8">
+              <div
+                className="flex-1 overflow-y-auto"
+                style={{ paddingTop: '2.5rem', paddingBottom: '10rem' }}
+              >
+                <div className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6">
                   {messages.map((msg, idx) => {
                     if (msg.sender === 'user') return <UserMessage key={msg.id} msg={msg} />;
-                    // Find the preceding user message for regenerate
                     const prevUserMsg = [...messages].slice(0, idx).reverse().find(m => m.sender === 'user');
                     const handleRegenerate = prevUserMsg
                       ? () => regenerateMessage(msg.id, prevUserMsg.text, messages.slice(0, idx))
@@ -1018,8 +1042,8 @@ export default function ConversationPage() {
                 </div>
               </div>
 
-              {/* Floating input */}
-              <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-4 pb-6 pt-2 pointer-events-none z-20">
+              {/* Floating input — with safe-area bottom for iOS */}
+              <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}>
                 <div className="w-full max-w-2xl pointer-events-auto">
                   <InputBox
                     value={inputVal} onChange={setInputVal}
