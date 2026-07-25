@@ -1,0 +1,235 @@
+@import "tailwindcss";
+
+/* ─── SYNAPTICA AI SaaS Design System & Tokens ────────────────── */
+:root {
+  /* Primitive Tokens */
+  --void-950: #06070D;
+  --void-900: #0B0D17;
+  --void-800: #12141F;
+  --void-700: #1B1E2E;
+  
+  --ai-500: #00D4FF;
+  --ai-400: #4EE8FF;
+  
+  --human-500: #B24BF3;
+  --human-400: #D68CFF;
+  
+  --synapse-500: #7C5CFF;
+  --synapse-400: #967DFF;
+  
+  --white: #F5F6FA;
+  --gray-400: #8A8FA3;
+  --gray-600: #565B73;
+
+  /* Semantic Tokens */
+  --bg-primary: var(--void-950);
+  --bg-surface: var(--void-900);
+  --bg-card: var(--void-800);
+  --border-subtle: var(--void-700);
+  --text-primary: var(--white);
+  --text-muted: var(--gray-400);
+  --accent-logic: var(--ai-500);
+  --accent-intuition: var(--human-500);
+  --accent-bridge: var(--synapse-500);
+  --gradient-duality: linear-gradient(135deg, var(--ai-500) 0%, var(--synapse-500) 50%, var(--human-500) 100%);
+
+  /* Liquid Glass default tokens */
+  --glass-bg: rgba(18, 20, 31, 0.65);
+  --glass-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --border-grad-top: rgba(255, 255, 255, 0.35);
+  --border-grad-mid: rgba(124, 92, 255, 0.2);
+  --border-grad-end: rgba(255, 255, 255, 0.35);
+}
+
+.light-mode {
+  --void-950: #F8FAFC;
+  --void-900: #F1F5F9;
+  --void-800: #FFFFFF;
+  --void-700: #E2E8F0;
+  --white: #0F172A;
+  --gray-400: #64748B;
+  --gray-600: #94A3B8;
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 8px 32px rgba(15, 23, 42, 0.08);
+  --border-grad-top: rgba(255, 255, 255, 0.95);
+  --border-grad-mid: rgba(124, 92, 255, 0.25);
+  --border-grad-end: rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Tailwind v4 Theme Extension ───────────────────────────── */
+@theme {
+  --color-void-950: var(--void-950);
+  --color-void-900: var(--void-900);
+  --color-void-800: var(--void-800);
+  --color-void-700: var(--void-700);
+  
+  --color-ai-500: var(--ai-500);
+  --color-ai-400: var(--ai-400);
+  
+  --color-human-500: var(--human-500);
+  --color-human-400: var(--human-400);
+  
+  --color-synapse-500: var(--synapse-500);
+  --color-synapse-400: var(--synapse-400);
+  
+  --color-text-primary: var(--white);
+  --color-text-muted: var(--gray-400);
+  --color-gray-600: var(--gray-600);
+
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* ─── Base Reset & Global Rules ──────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body, #root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--void-950);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--white);
+  letter-spacing: -0.02em;
+}
+
+/* ─── Focus Ring ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--synapse-500);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--void-950);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--void-700);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--synapse-500);
+}
+
+/* ─── Grain Overlay ─────────────────────────────────────────── */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* ─── Liquid Glass & Card Utilities ──────────────────────────── */
+.glass-card, .liquid-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--void-700);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(124, 92, 255, 0.45);
+  box-shadow: 0 14px 44px -10px rgba(124, 92, 255, 0.28);
+}
+
+.glass-nav {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--void-700);
+}
+
+/* Masked Gradient Border Effect */
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.2px;
+  background: linear-gradient(
+    to bottom,
+    var(--border-grad-top) 0%,
+    var(--border-grad-mid) 30%,
+    transparent 50%,
+    var(--border-grad-mid) 70%,
+    var(--border-grad-end) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Text & Button Gradients ────────────────────────────────── */
+.text-gradient-duality {
+  background: linear-gradient(135deg, var(--ai-500) 0%, var(--synapse-500) 50%, var(--human-500) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-duality {
+  background: linear-gradient(135deg, var(--ai-500) 0%, var(--synapse-500) 50%, var(--human-500) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  box-shadow: 0 0 24px rgba(124, 92, 255, 0.4);
+}
+
+.btn-duality::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--human-500) 0%, var(--synapse-500) 50%, var(--ai-500) 100%);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+}
+
+.btn-duality:hover::before {
+  opacity: 1;
+}
+
+.btn-duality:hover {
+  box-shadow: 0 0 35px rgba(0, 212, 255, 0.55), 0 0 20px rgba(178, 75, 243, 0.55);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
