@@ -273,12 +273,28 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = false }) {
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const placeholder = useTypewriter(PLACEHOLDER_TEXTS);
+function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, dropUp }) {
   const [attachments, setAttachments] = useState([]);
   const [isListening, setIsListening] = useState(false);
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+  const modeDropdownRef = useRef(null);
+
+  // If dropUp is specified use it, otherwise open downward when large (welcome screen) and upward when small (active chat)
+  const isDropUp = dropUp !== undefined ? dropUp : !large;
+
+  // Close mode dropdown on outside click
+  useEffect(() => {
+    if (!showModeDropdown) return;
+    const handleClickOutside = (e) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target)) {
+        setShowModeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showModeDropdown]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -502,13 +518,108 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
       />
 
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 pb-3.5 pt-1 gap-2">
-        <button onClick={() => onModeChange(activeMode === 'Auto' ? 'Focused' : 'Auto')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <Sparkles className="w-3.5 h-3.5 text-white/70" strokeWidth={1.5} />
-          <span className="hidden xs:inline">{activeMode}</span>
-          <ChevronDown className="w-3 h-3 text-white/50" />
-        </button>
+        {/* Duality Mode Selector Dropdown — Black & White Theme */}
+        <div className="relative" ref={modeDropdownRef}>
+          <button
+            onClick={() => setShowModeDropdown(v => !v)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: showModeDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
+              backdropFilter: 'blur(12px)',
+            }}
+            title="Choose Duality Mode"
+          >
+            {activeMode === 'Logic' && <Cpu className="w-3.5 h-3.5 text-white/90" />}
+            {activeMode === 'Duality' && <Sparkles className="w-3.5 h-3.5 text-white/90" />}
+            {activeMode === 'Empathy' && <Brain className="w-3.5 h-3.5 text-white/90" />}
+
+            <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
+              {activeMode}
+            </span>
+
+            <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showModeDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dark Glass Dropdown Menu — Dynamic direction (Downward before start, Upward during chat) */}
+          <AnimatePresence>
+            {showModeDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: isDropUp ? 8 : -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: isDropUp ? 6 : -6, scale: 0.95 }}
+                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
+                style={{
+                  background: 'rgba(5, 5, 8, 0.96)',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                }}
+              >
+
+                {[
+                  {
+                    id: 'Logic',
+                    title: 'Logic',
+                    desc: 'Analytical data, code, facts & formulas',
+                    icon: <Cpu className="w-4 h-4 text-white/90 shrink-0" />,
+                  },
+                  {
+                    id: 'Duality',
+                    title: 'Duality',
+                    desc: '50/50 Machine logic & Human empathy',
+                    icon: <Sparkles className="w-4 h-4 text-white/90 shrink-0" />,
+                  },
+                  {
+                    id: 'Empathy',
+                    title: 'Empathy',
+                    desc: 'Emotional intelligence & context',
+                    icon: <Brain className="w-4 h-4 text-white/90 shrink-0" />,
+                  },
+                ].map(item => {
+                  const isActive = activeMode === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onModeChange(item.id);
+                        setShowModeDropdown(false);
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 transition-all cursor-pointer group relative mb-0.5"
+                      style={{
+                        background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+                        border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
+                      }}
+                      onMouseEnter={e => {
+                        if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                      }}
+                      onMouseLeave={e => {
+                        if (!isActive) e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <div className="mt-0.5">{item.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                            {item.title}
+                          </span>
+                          {isActive && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          {item.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <div className="flex items-center gap-2">
           <FloatingActionButton
@@ -724,27 +835,64 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
         {renderMarkdown(msg.text)}
       </div>
 
-      {/* Dual-stream insight cards */}
+      {/* Dual-stream insight cards — Monochrome */}
       {(msg.aiReasoning || msg.humanInsight) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-3xl mt-1">
-          {msg.aiReasoning && (
-            <div className="p-3 rounded-xl text-xs"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
-                <Cpu className="w-3 h-3" /><span>AI Stream</span>
+        <div className="space-y-2 max-w-3xl mt-2">
+          {/* Duality Ratio Progress Meter */}
+          {(msg.logicRatio !== undefined || msg.empathyRatio !== undefined) && (
+            <div className="p-2.5 rounded-xl text-xs space-y-1.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center justify-between text-[11px] font-mono text-white/60">
+                <span className="flex items-center gap-1 text-white/85">
+                  <Cpu className="w-3 h-3 text-white/60" /> Machine Logic ({msg.logicRatio ?? 50}%)
+                </span>
+                <span className="text-white/30 text-[10px] uppercase font-bold tracking-wider">
+                  {msg.modeName || 'Synaptic Duality'}
+                </span>
+                <span className="flex items-center gap-1 text-white/85">
+                  Human Context ({msg.empathyRatio ?? 50}%) <Brain className="w-3 h-3 text-white/60" />
+                </span>
               </div>
-              <p className="text-white/45 leading-snug">{msg.aiReasoning}</p>
+              {/* Dual monochrome bar */}
+              <div className="h-1.5 w-full rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div
+                  className="h-full transition-all duration-700 bg-white"
+                  style={{
+                    width: `${msg.logicRatio ?? 50}%`,
+                    boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)',
+                  }}
+                />
+                <div
+                  className="h-full transition-all duration-700"
+                  style={{
+                    width: `${msg.empathyRatio ?? 50}%`,
+                    background: 'rgba(255, 255, 255, 0.3)',
+                  }}
+                />
+              </div>
             </div>
           )}
-          {msg.humanInsight && (
-            <div className="p-3 rounded-xl text-xs"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
-                <Brain className="w-3 h-3" /><span>Human Context</span>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {msg.aiReasoning && (
+              <div className="p-3 rounded-xl text-xs"
+                style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/70">
+                  <Cpu className="w-3 h-3 text-white/50" /><span>AI Stream (Logic)</span>
+                </div>
+                <p className="text-white/60 leading-snug">{msg.aiReasoning}</p>
               </div>
-              <p className="text-white/45 leading-snug">{msg.humanInsight}</p>
-            </div>
-          )}
+            )}
+            {msg.humanInsight && (
+              <div className="p-3 rounded-xl text-xs"
+                style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/70">
+                  <Brain className="w-3 h-3 text-white/50" /><span>Human Context (Empathy)</span>
+                </div>
+                <p className="text-white/60 leading-snug">{msg.humanInsight}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -869,7 +1017,7 @@ export default function ConversationPage() {
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [activeMode, setActiveMode] = useState('Auto');
+  const [activeMode, setActiveMode] = useState('Duality');
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -902,7 +1050,7 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(promptForAI, messages);
+      const response = await getSynthesizedResponse(promptForAI, messages, activeMode);
 
       const elapsed = Date.now() - startTime;
       const minDelay = 1800;
@@ -917,6 +1065,9 @@ export default function ConversationPage() {
         text: response.text,
         aiReasoning: response.aiReasoning,
         humanInsight: response.humanInsight,
+        logicRatio: response.logicRatio,
+        empathyRatio: response.empathyRatio,
+        modeName: response.modeName || activeMode,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);

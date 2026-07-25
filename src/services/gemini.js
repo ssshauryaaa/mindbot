@@ -9,40 +9,55 @@ import { generateSmartResponse } from './fallback.js';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const SYSTEM_INSTRUCTION = `You are Synaptica, a sharp and empathetic AI stream & career counselor.
+const SYSTEM_INSTRUCTION_BASE = `You are Synaptica, a sharp AI & Human Duality Intelligence System.
 
-You help Indian students think through academic stream choices (Science PCM, Science PCB, Commerce, Humanities/Arts, Law, Design) and career paths (Engineering, Medical, NDA/Defence, Business, Design, Civil Services, etc.).
-
-Always read the full conversation history. If a user asks a follow-up like "what about humanities?" or "what should I do after that", reference what they've already shared.
+You help users with academic stream choices, career decisions, coding, logic, and life guidance by synthesizing two distinct streams of thought:
+1. Machine Logic (analytical data, facts, formulas, structure)
+2. Human Empathy (emotional intelligence, real-world trade-offs, perspective)
 
 Respond ONLY with a raw JSON object (no markdown, no extra text). Exact shape:
 {
-  "text": "<Direct, natural answer in 2-4 sentences. Use their actual interests/situation. If the question is too vague, ask ONE specific clarifying question instead of giving generic advice.>",
-  "aiReasoning": "<1-2 sentence factual rationale based on the student's specific situation — subject strengths, exam eligibility, career outcomes, or demand data. Never mention AI internals.>",
-  "humanInsight": "<1-2 sentence honest human perspective — a real tradeoff, an observation, or a reflective question tailored to them. Not a generic disclaimer.>"
+  "text": "<Direct, natural answer in 2-4 sentences tailored to the query.>",
+  "aiReasoning": "<1-2 sentence factual, logical rationale based on data or objective criteria. Never mention AI internals.>",
+  "humanInsight": "<1-2 sentence empathetic human perspective, honest trade-off, or reflective advice.>",
+  "logicRatio": <number between 10 and 90 indicating weight of machine logic in this response>,
+  "empathyRatio": <number between 10 and 90 indicating weight of human empathy in this response>,
+  "modeName": "<The mode used: 'Pure Logic', 'Synaptic Duality', or 'Human Empathy'>"
 }
 
 Absolute rules:
-- Never mention vectors, confidence scores, pattern engines, checksums, or anything about your own architecture.
-- Do not give vague, non-committal answers. Be direct and specific.
-- Write like a real counselor talking to a student, not a formal report.
-- If you don't know something specific about the student, ask for it. Don't fake confidence.`;
+- Never mention vectors, confidence scores, pattern engines, or architecture internals.
+- Write naturally like a real expert collaborator talking to a human, not a formal report.
+- Maintain consistency with past conversation context.`;
 
 /**
- * Synthesizes a real AI response using Gemini 2.0 Flash.
+ * Synthesizes a real AI response using Gemini 2.0 Flash with Duality mode support.
  *
  * @param {string} userPrompt - The user's message
  * @param {Array} history - Prior conversation messages [{sender, text}]
- * @returns {Promise<{ text: string, aiReasoning: string, humanInsight: string }>}
+ * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy'
+ * @returns {Promise<{ text: string, aiReasoning: string, humanInsight: string, logicRatio: number, empathyRatio: number, modeName: string }>}
  */
-export async function getSynthesizedResponse(userPrompt, history = []) {
+export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality') {
   if (!API_KEY || API_KEY.length < 8) {
     console.warn('[MindBot] No API key found, using fallback');
-    return generateSmartResponse(userPrompt, history);
+    const fallback = generateSmartResponse(userPrompt, history);
+    const r = activeMode === 'Pure Logic' ? { l: 90, e: 10 } : activeMode === 'Human Empathy' ? { l: 10, e: 90 } : { l: 50, e: 50 };
+    return { ...fallback, logicRatio: r.l, empathyRatio: r.e, modeName: activeMode };
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+    // Mode-specific instructions
+    let modeInstruction = "";
+    if (activeMode.includes('Logic')) {
+      modeInstruction = "\nCURRENT MODE: LOGIC. Maximize analytical depth, structure, facts, and code/formulas. Set logicRatio around 85-95 and empathyRatio around 5-15.";
+    } else if (activeMode.includes('Empathy')) {
+      modeInstruction = "\nCURRENT MODE: EMPATHY. Maximize emotional intelligence, personal growth, real-world context, and empathetic encouragement. Set empathyRatio around 85-95 and logicRatio around 5-15.";
+    } else {
+      modeInstruction = "\nCURRENT MODE: DUALITY. Balance AI logic and human empathy equally 50/50. Set logicRatio around 50 and empathyRatio around 50.";
+    }
 
     // Build multi-turn history (last 8 messages for context)
     const contents = history
@@ -62,8 +77,8 @@ export async function getSynthesizedResponse(userPrompt, history = []) {
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.75,
+        systemInstruction: SYSTEM_INSTRUCTION_BASE + modeInstruction,
+        temperature: activeMode === 'Pure Logic' ? 0.35 : activeMode === 'Human Empathy' ? 0.85 : 0.7,
         responseMimeType: 'application/json',
       },
       contents,
@@ -72,7 +87,6 @@ export async function getSynthesizedResponse(userPrompt, history = []) {
     const rawText = response.text;
     if (!rawText) throw new Error('Empty response from Gemini');
 
-    // Strip markdown fences if present
     const cleaned = rawText
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
@@ -85,11 +99,21 @@ export async function getSynthesizedResponse(userPrompt, history = []) {
       throw new Error('Incomplete JSON from Gemini: ' + JSON.stringify(result));
     }
 
-    console.info('[MindBot] ✓ Real Gemini response received');
-    return result;
+    const defaultRatios = activeMode === 'Pure Logic' ? { l: 90, e: 10 } : activeMode === 'Human Empathy' ? { l: 10, e: 90 } : { l: 50, e: 50 };
+
+    return {
+      text: result.text,
+      aiReasoning: result.aiReasoning,
+      humanInsight: result.humanInsight,
+      logicRatio: typeof result.logicRatio === 'number' ? result.logicRatio : defaultRatios.l,
+      empathyRatio: typeof result.empathyRatio === 'number' ? result.empathyRatio : defaultRatios.e,
+      modeName: activeMode,
+    };
   } catch (err) {
     console.warn('[MindBot] Gemini failed, using smart fallback:', err.message);
-    return generateSmartResponse(userPrompt, history);
+    const fallback = generateSmartResponse(userPrompt, history);
+    const r = activeMode === 'Pure Logic' ? { l: 90, e: 10 } : activeMode === 'Human Empathy' ? { l: 10, e: 90 } : { l: 50, e: 50 };
+    return { ...fallback, logicRatio: r.l, empathyRatio: r.e, modeName: activeMode };
   }
 }
 
