@@ -20,11 +20,19 @@ export default function CustomCursor() {
     setIsVisible(true);
     document.body.style.cursor = 'none';
 
+    let animFrame = null;
     const handleMove = (e) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-      const isInteractive = e.target.closest('a, button, input, textarea, select, [role="button"]');
-      setIsHovered(!!isInteractive);
+      if (animFrame) return;
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      const target = e.target;
+      animFrame = requestAnimationFrame(() => {
+        mouseX.set(clientX);
+        mouseY.set(clientY);
+        const isInteractive = target.closest?.('a, button, input, textarea, select, [role="button"]');
+        setIsHovered(!!isInteractive);
+        animFrame = null;
+      });
     };
     const onLeave  = () => setIsVisible(false);
     const onEnter  = () => setIsVisible(true);
@@ -35,6 +43,7 @@ export default function CustomCursor() {
 
     return () => {
       document.body.style.cursor = '';
+      if (animFrame) cancelAnimationFrame(animFrame);
       window.removeEventListener('mousemove', handleMove);
       document.body.removeEventListener('mouseleave', onLeave);
       document.body.removeEventListener('mouseenter', onEnter);

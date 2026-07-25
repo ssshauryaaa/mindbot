@@ -7,7 +7,7 @@ import {
   ChevronDown, Sparkles, Brain, Cpu,
   Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
-  Download, Clock,
+  Download, Clock, X, FileText, Image as ImageIcon, File,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
@@ -243,12 +243,20 @@ function parseBold(text) {
   });
 }
 
-/* ════════════════════════════════════════════════════════════════
-   6. INPUT BOX
-════════════════════════════════════════════════════════════════ */
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = false }) {
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const placeholder = useTypewriter(PLACEHOLDER_TEXTS);
+  const [attachments, setAttachments] = useState([]);
+  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -257,11 +265,196 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
     }
   }, [value]);
 
-  const canSend = value.trim().length > 0;
+  const [toast, setToast] = useState(null); // { id, message, isImage }
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newAttachments = files.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      size: formatFileSize(file.size),
+      type: file.type,
+      fileObj: file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+    }));
+
+    setAttachments(prev => [...prev, ...newAttachments]);
+
+    // Show toast for uploaded file(s)
+    const firstFile = files[0];
+    const isImg = firstFile.type.startsWith('image/');
+    const label = files.length > 1 ? `${files.length} files attached` : isImg ? `Image uploaded: ${firstFile.name}` : `File attached: ${firstFile.name}`;
+    setToast({ id: Date.now(), message: label, isImage: isImg });
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (id) => {
+    setAttachments(prev => {
+      const target = prev.find(a => a.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(a => a.id !== id);
+    });
+  };
+
+  const handleVoiceDictation = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (e) => {
+      const transcript = Array.from(e.results)
+        .map(result => result[0].transcript)
+        .join('');
+      onChange(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const handleSend = () => {
+    if (!value.trim() && !attachments.length) return;
+    onSend(value, attachments);
+    setAttachments([]);
+  };
+
+  const canSend = value.trim().length > 0 || attachments.length > 0;
 
   return (
     <div className="glass-input rounded-2xl w-full relative" style={{ borderRadius: 18 }}>
-      {!value && (
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-xl z-50 pointer-events-none"
+            style={{
+              background: 'rgba(20, 20, 20, 0.92)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <Check className="w-2.5 h-2.5 text-emerald-400" />
+            </div>
+            <span className="truncate max-w-[240px]" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {toast.message}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        multiple
+        className="hidden"
+      />
+
+      {/* Attachment Badges Row — Bigger Image Previews */}
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 pt-3.5 pb-1">
+          {attachments.map(att => (
+            <motion.div
+              key={att.id}
+              initial={{ opacity: 0, scale: 0.88 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.88 }}
+              className="relative group flex items-center"
+            >
+              {att.previewUrl ? (
+                /* Enlarged Image Card Preview */
+                <div
+                  className="relative flex items-center gap-3 pr-8 p-1.5 rounded-2xl overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  <img
+                    src={att.previewUrl}
+                    alt={att.name}
+                    className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-md shrink-0"
+                  />
+                  <div className="flex flex-col min-w-0 pr-1">
+                    <span className="text-xs text-white/90 font-medium truncate max-w-[130px]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {att.name}
+                    </span>
+                    <span className="text-[10px] text-white/40 font-mono mt-0.5">{att.size}</span>
+                  </div>
+                  <button
+                    onClick={() => removeAttachment(att.id)}
+                    className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer"
+                    title="Remove image"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                /* Document/File Card Preview */
+                <div
+                  className="relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs text-white/88"
+                  style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-white/80" />
+                  </div>
+                  <div className="flex flex-col min-w-0 pr-2">
+                    <span className="truncate max-w-[130px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {att.name}
+                    </span>
+                    <span className="text-[10px] text-white/40 font-mono">{att.size}</span>
+                  </div>
+                  <button
+                    onClick={() => removeAttachment(att.id)}
+                    className="hover:text-white text-white/40 ml-1 transition-colors cursor-pointer"
+                    title="Remove file"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Animated typewriter placeholder */}
+      {!value && attachments.length === 0 && (
         <div
           aria-hidden="true"
           className="absolute pointer-events-none select-none text-[15px] text-white/30 leading-relaxed"
@@ -279,7 +472,7 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
         ref={textareaRef}
         value={value}
         onChange={e => onChange(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         placeholder=""
         rows={large ? 3 : 1}
         className="w-full bg-transparent resize-none px-5 pt-4 pb-1 text-[15px] text-white/90 focus:outline-none leading-relaxed"
@@ -301,13 +494,33 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
             label="Quick Tools"
             positionClassName="relative"
             actions={[
-              { id: "attach", label: "Attach File",      icon: <Paperclip className="w-4 h-4 text-white" />, onClick: () => onChange(value + " [Attachment] ") },
-              { id: "code",   label: "Insert Code",      icon: <Code className="w-4 h-4 text-white" />,      onClick: () => onChange(value + "\n```js\n// Code here\n```\n") },
-              { id: "voice",  label: "Voice Dictation",  icon: <Mic className="w-4 h-4 text-white" />,       onClick: () => {} },
-              { id: "settings", label: "Model Settings", icon: <Settings2 className="w-4 h-4 text-white" />, onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto") },
+              {
+                id: "attach",
+                label: "Attach File",
+                icon: <Paperclip className="w-4 h-4 text-white" />,
+                onClick: () => fileInputRef.current?.click(),
+              },
+              {
+                id: "code",
+                label: "Insert Code",
+                icon: <Code className="w-4 h-4 text-white" />,
+                onClick: () => onChange(value + (value ? "\n" : "") + "```js\n// Write code here\n```\n"),
+              },
+              {
+                id: "voice",
+                label: isListening ? "Stop Listening" : "Voice Dictation",
+                icon: <Mic className={`w-4 h-4 ${isListening ? 'text-red-400 animate-pulse' : 'text-white'}`} />,
+                onClick: handleVoiceDictation,
+              },
+              {
+                id: "settings",
+                label: "Model Settings",
+                icon: <Settings2 className="w-4 h-4 text-white" />,
+                onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto"),
+              },
             ]}
           />
-          <button onClick={onSend} disabled={!canSend} aria-label="Send"
+          <button onClick={handleSend} disabled={!canSend} aria-label="Send"
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer"
             style={{
               background: canSend ? '#ffffff' : 'rgba(255,255,255,0.05)',
@@ -332,20 +545,66 @@ function UserMessage({ msg }) {
       initial={{ opacity: 0, y: 10, x: 10 }}
       animate={{ opacity: 1, y: 0, x: 0 }}
       transition={{ duration: 0.25 }}
-      className="flex justify-end"
+      className="flex flex-col items-end gap-1.5"
     >
-      <div
-        className="max-w-md text-sm text-white/90 px-4 py-2.5 rounded-full"
-        style={{
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.14)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          lineHeight: 1.5,
-        }}
-      >
-        {msg.text}
-      </div>
+      {msg.attachments && msg.attachments.length > 0 && (
+        <div className="flex flex-wrap justify-end gap-2.5 max-w-md mb-1">
+          {msg.attachments.map((att, idx) => (
+            <div key={idx} className="relative">
+              {att.previewUrl ? (
+                <div
+                  className="flex flex-col gap-1 p-1.5 rounded-2xl"
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  <img
+                    src={att.previewUrl}
+                    alt={att.name}
+                    className="w-28 h-28 rounded-xl object-cover border border-white/20 shadow-lg"
+                  />
+                  <div className="px-1 py-0.5 flex items-center justify-between gap-1 max-w-[112px]">
+                    <span className="text-[11px] text-white/80 font-medium truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {att.name}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs text-white/88"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <FileText className="w-4 h-4 text-white/70" />
+                  <span className="truncate max-w-[140px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {att.name}
+                  </span>
+                  <span className="text-[10px] text-white/40 font-mono">{att.size}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {msg.text && (
+        <div
+          className="max-w-md text-sm text-white/90 px-4 py-2.5 rounded-2xl"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            lineHeight: 1.5,
+          }}
+        >
+          {msg.text}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -594,22 +853,34 @@ export default function ConversationPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const sendMessage = async text => {
-    const t = (text || inputVal).trim();
-    if (!t) return;
+  const sendMessage = async (text, attachments = []) => {
+    const rawText = (text || inputVal).trim();
+    if (!rawText && (!attachments || attachments.length === 0)) return;
     setInputVal('');
     setHasStarted(true);
 
     const startTime = Date.now();
 
+    // Format prompt text for Gemini if attachments exist
+    let promptForAI = rawText;
+    if (attachments && attachments.length > 0) {
+      const attNames = attachments.map(a => `${a.name} (${a.size})`).join(', ');
+      promptForAI = rawText
+        ? `${rawText}\n\n[Attached File(s): ${attNames}]`
+        : `[Attached File(s): ${attNames}] Please analyze these files.`;
+    }
+
     setMessages(prev => [...prev, {
-      id: Date.now(), sender: 'user', text: t,
+      id: Date.now(),
+      sender: 'user',
+      text: rawText,
+      attachments: attachments,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }]);
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(t, messages);
+      const response = await getSynthesizedResponse(promptForAI, messages);
 
       const elapsed = Date.now() - startTime;
       const minDelay = 1800;

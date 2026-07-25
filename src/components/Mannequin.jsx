@@ -37,16 +37,11 @@ export default function Mannequin({ pointer, isAnimating = false, onAnimationCom
                 if (obj.name === 'Hood' || obj.parent?.name === 'Hood') {
                     obj.visible = SHOW_HOOD_MESH;
                 }
-                const mat = new THREE.MeshPhysicalMaterial({
+                const mat = new THREE.MeshStandardMaterial({
                     color: new THREE.Color('#040a1c'),
-                    metalness: 0.72,
-                    roughness: 0.08,
-                    clearcoat: 1,
-                    clearcoatRoughness: 0.05,
-                    envMapIntensity: 1.6,
-                    iridescence: 1,
-                    iridescenceIOR: 1.9,
-                    iridescenceThicknessRange: [200, 700],
+                    metalness: 0.82,
+                    roughness: 0.14,
+                    envMapIntensity: 1.4,
                     emissive: new THREE.Color('#4da8ff'),
                     emissiveIntensity: 0,
                 });
@@ -84,39 +79,57 @@ export default function Mannequin({ pointer, isAnimating = false, onAnimationCom
         const t = state.clock.elapsedTime;
 
         if (isAnimating) {
-            // Ease animProgress toward 1
-            animProgress.current = Math.min(animProgress.current + delta * 0.85, 1);
-            const ease = 1 - Math.pow(1 - animProgress.current, 3); // cubic ease-out
+            // Slower, majestic multi-phase progress (~3.0s duration)
+            animProgress.current = Math.min(animProgress.current + delta * 0.33, 1);
+            const p = animProgress.current;
 
-            // Target: center screen, model rises up to show torso
-            const targetX = 0;
-            const targetY = -3.2;
+            // Custom smooth easing curve
+            const ease = p < 0.5
+                ? 2 * p * p
+                : 1 - Math.pow(-2 * p + 2, 2) / 2;
 
-            currentPos.current.x = lerp(currentPos.current.x, targetX, 0.045);
-            currentPos.current.y = lerp(currentPos.current.y, targetY, 0.045);
+            // Interactive subtle cursor sway
+            const userP = pointer?.current ?? { x: 0, y: 0 };
+            const interactiveTiltX = -userP.y * 0.06 * (1 - p * 0.8);
+            const interactiveTiltY = userP.x * 0.08 * (1 - p * 0.8);
+
+            // Initial start position from props
+            const startX = props.position?.[0] ?? 2;
+            const startY = props.position?.[1] ?? -5.65;
+
+            // Target position: (0, 0, 0.5) is the EXACT center of the screen canvas
+            const targetX = lerp(startX, 0, ease);
+            const targetY = lerp(startY, 0.1, ease); // 0.1 aligns exact core/chest center
+            const targetZ = lerp(0, 0.6, ease);
 
             if (outerGroup.current) {
-                outerGroup.current.position.x = currentPos.current.x;
-                outerGroup.current.position.y = currentPos.current.y;
-                // Face forward smoothly
-                outerGroup.current.rotation.y = lerp(outerGroup.current.rotation.y, 0, 0.06);
-                outerGroup.current.rotation.x = lerp(outerGroup.current.rotation.x, 0, 0.06);
-                // Scale up slightly
-                const targetScale = 1 + ease * 0.22;
-                outerGroup.current.scale.setScalar(lerp(outerGroup.current.scale.x, targetScale, 0.06));
+                outerGroup.current.position.x = targetX;
+                outerGroup.current.position.y = targetY;
+                outerGroup.current.position.z = targetZ;
+
+                // Rotate to face directly straight into camera at center
+                const targetRotY = lerp(STATIC_ROTATION_Y, 0, ease) + interactiveTiltY;
+                const targetRotX = interactiveTiltX;
+
+                outerGroup.current.rotation.y = targetRotY;
+                outerGroup.current.rotation.x = targetRotX;
+
+                // Zoom scale centered on model core: 1 -> 5.5
+                const targetScale = lerp(1, 5.5, Math.pow(p, 1.8));
+                outerGroup.current.scale.setScalar(targetScale);
             }
 
-            // Emissive glow builds up as model centers
+            // Pulsing emissive glow builds into hyper-glow
             if (materials.current.length) {
-                const glow = ease * 3.5;
+                const pulse = Math.sin(p * Math.PI * 3) * 0.5 + 0.5;
+                const glow = (p * 6.5) + (pulse * 1.5 * (1 - p));
                 materials.current.forEach((m) => { m.emissiveIntensity = glow; });
             }
 
-            // Call completion callback when fully animated
             if (animProgress.current >= 1 && onAnimationComplete) {
                 onAnimationComplete();
             }
-            return; // skip normal idle when animating
+            return;
         }
 
         // — Normal idle behaviour —

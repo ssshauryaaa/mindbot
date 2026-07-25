@@ -12,14 +12,21 @@ export default function LandingPage() {
   const [animating, setAnimating] = useState(false);
   const pointer = useRef({ x: 0, y: 0 });
 
+  const animationFrame = useRef(null);
+
   const handlePointerMove = (e) => {
-    if (animating) return;
-    pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-    pointer.current.y = (e.clientY / window.innerHeight) * 2 - 1;
+    if (animationFrame.current) return;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    animationFrame.current = requestAnimationFrame(() => {
+      pointer.current.x = (clientX / window.innerWidth) * 2 - 1;
+      pointer.current.y = (clientY / window.innerHeight) * 2 - 1;
+      animationFrame.current = null;
+    });
   };
 
   const handleAnimationComplete = useCallback(() => {
-    setTimeout(() => navigate('/'), 350);
+    setTimeout(() => navigate('/'), 300);
   }, [navigate]);
 
   const handleStart = useCallback(() => {
@@ -29,14 +36,14 @@ export default function LandingPage() {
 
   return (
     <div
-      className="w-screen h-screen bg-black text-white relative overflow-hidden"
+      className="w-screen h-screen bg-black text-white relative overflow-hidden select-none"
       onPointerMove={handlePointerMove}
     >
       {/* Layer 1 — video bg */}
       <video
         autoPlay loop muted playsInline
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ zIndex: 0, opacity: animating ? 0.15 : 0.55, transition: 'opacity 1.4s ease' }}
+        style={{ zIndex: 0, opacity: animating ? 0.1 : 0.55, transition: 'opacity 2.2s ease' }}
       >
         <source src="/aurora-1784998368911.webm" type="video/webm" />
       </video>
@@ -44,18 +51,17 @@ export default function LandingPage() {
       {/* Layer 2 — dark tint */}
       <div
         className="absolute inset-0 transition-all duration-1000"
-        style={{ zIndex: 1, background: animating ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.4)' }}
+        style={{ zIndex: 1, background: animating ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.4)' }}
       />
 
       {/* Layer 3 — 3D canvas */}
       <div className="absolute inset-0" style={{ zIndex: 2 }}>
-        <Canvas shadows camera={{ position: [0, 0.15, 5], fov: 32 }} style={{ cursor: 'none' }}>
-          <ambientLight intensity={animating ? 0.5 : 0.15} />
-          <pointLight position={[2.7, 0.7, 1.6]} intensity={16} color="#ff4d8d" distance={2.6} />
-          <pointLight position={[1.9, 0.1, 1.4]} intensity={12} color="#38c9ff" distance={2.6} />
-          <pointLight position={[1, 2.5, 3]} intensity={18} color="#dce8ff" distance={10} />
-          <pointLight position={[3.6, 0.2, -1.5]} intensity={14} color="#3a6bff" distance={9} />
-          <directionalLight position={[0, 4, 4]} intensity={0.25} />
+        <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, 0.15, 5], fov: 32 }} style={{ cursor: 'none' }}>
+          <ambientLight intensity={animating ? 0.8 : 0.15} />
+          <pointLight position={[2.7, 0.7, 1.6]} intensity={14} color="#ff4d8d" distance={2.6} />
+          <pointLight position={[1.9, 0.1, 1.4]} intensity={10} color="#38c9ff" distance={2.6} />
+          <pointLight position={[1, 2.5, 3]} intensity={14} color="#dce8ff" distance={10} />
+          <directionalLight position={[0, 4, 4]} intensity={0.2} />
           <Environment preset="studio" />
           <Suspense fallback={null}>
             <Mannequin
@@ -65,7 +71,7 @@ export default function LandingPage() {
               onAnimationComplete={handleAnimationComplete}
             />
           </Suspense>
-          <ContactShadows position={[0, -1.85, 0]} opacity={0.45} blur={2.6} far={3} />
+          <ContactShadows position={[0, -1.85, 0]} opacity={0.45} blur={2.6} far={3} frames={1} />
         </Canvas>
       </div>
 
@@ -77,8 +83,8 @@ export default function LandingPage() {
         style={{
           zIndex: 10,
           opacity: animating ? 0 : 1,
-          transform: animating ? 'translateX(-40px)' : 'translateX(0)',
-          transition: 'opacity 0.5s ease, transform 0.5s ease',
+          transform: animating ? 'translateX(-60px)' : 'translateX(0)',
+          transition: 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div className="max-w-lg px-8 sm:px-12 md:px-20">
@@ -102,8 +108,8 @@ export default function LandingPage() {
         style={{
           zIndex: 10,
           opacity: animating ? 0 : 1,
-          transform: animating ? 'translateY(-30px) scale(0.95)' : 'translateY(0) scale(1)',
-          transition: 'opacity 0.45s ease, transform 0.45s ease',
+          transform: animating ? 'translateY(-40px) scale(0.92)' : 'translateY(0) scale(1)',
+          transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div className="pointer-events-auto flex justify-center items-center w-full">
@@ -121,21 +127,34 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Center radial flash during animation */}
+      {/* Center radial energy flare pulse */}
       {animating && (
         <motion.div
           className="absolute inset-0 pointer-events-none"
           style={{ zIndex: 11 }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0, 0.18, 0] }}
-          transition={{ duration: 1.6, times: [0, 0.55, 0.75, 1] }}
+          animate={{ opacity: [0, 0.4, 0.1, 0] }}
+          transition={{ duration: 2.8, times: [0, 0.5, 0.8, 1] }}
         >
           <div
             className="absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse at center, rgba(100,200,255,0.6) 0%, rgba(180,120,255,0.3) 40%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle at center, rgba(77,168,255,0.45) 0%, rgba(180,120,255,0.2) 35%, transparent 65%)' }}
           />
         </motion.div>
       )}
+
+      {/* Solid Black Fade Overlay — dissolves smoothly to black at the end of the zoom */}
+      <AnimatePresence>
+        {animating && (
+          <motion.div
+            className="absolute inset-0 bg-black pointer-events-none"
+            style={{ zIndex: 99 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.1, delay: 2.0, ease: [0.16, 1, 0.3, 1] }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
