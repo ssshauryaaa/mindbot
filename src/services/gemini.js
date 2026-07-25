@@ -1,133 +1,110 @@
 /**
  * gemini.js
- * Gemini API wrapper with 5-second timeout + automatic fallback.
- * Never throws to the caller — always returns a valid result shape.
+ * Gemini AI service using the official @google/genai SDK.
+ * Provides real AI responses with multi-turn conversation context.
  */
 
-import { fallbackAILens, fallbackHumanLens } from './fallback.js';
+import { GoogleGenAI } from '@google/genai';
+import { generateSmartResponse } from './fallback.js';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const MODEL = 'gemini-2.0-flash';
-const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-const TIMEOUT_MS = 5000;
+
+const SYSTEM_INSTRUCTION = `You are Synaptica, a sharp and empathetic AI stream & career counselor.
+
+You help Indian students think through academic stream choices (Science PCM, Science PCB, Commerce, Humanities/Arts, Law, Design) and career paths (Engineering, Medical, NDA/Defence, Business, Design, Civil Services, etc.).
+
+Always read the full conversation history. If a user asks a follow-up like "what about humanities?" or "what should I do after that", reference what they've already shared.
+
+Respond ONLY with a raw JSON object (no markdown, no extra text). Exact shape:
+{
+  "text": "<Direct, natural answer in 2-4 sentences. Use their actual interests/situation. If the question is too vague, ask ONE specific clarifying question instead of giving generic advice.>",
+  "aiReasoning": "<1-2 sentence factual rationale based on the student's specific situation — subject strengths, exam eligibility, career outcomes, or demand data. Never mention AI internals.>",
+  "humanInsight": "<1-2 sentence honest human perspective — a real tradeoff, an observation, or a reflective question tailored to them. Not a generic disclaimer.>"
+}
+
+Absolute rules:
+- Never mention vectors, confidence scores, pattern engines, checksums, or anything about your own architecture.
+- Do not give vague, non-committal answers. Be direct and specific.
+- Write like a real counselor talking to a student, not a formal report.
+- If you don't know something specific about the student, ask for it. Don't fake confidence.`;
 
 /**
- * Core fetch wrapper with timeout and JSON parsing.
- * @param {string} systemInstruction
- * @param {string} userMessage
- * @returns {Promise<object>} — parsed JSON from the model's text response
+ * Synthesizes a real AI response using Gemini 2.0 Flash.
+ *
+ * @param {string} userPrompt - The user's message
+ * @param {Array} history - Prior conversation messages [{sender, text}]
+ * @returns {Promise<{ text: string, aiReasoning: string, humanInsight: string }>}
  */
-async function callGemini(systemInstruction, userMessage) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+export async function getSynthesizedResponse(userPrompt, history = []) {
+  if (!API_KEY || API_KEY.length < 8) {
+    console.warn('[MindBot] No API key found, using fallback');
+    return generateSmartResponse(userPrompt, history);
+  }
 
   try {
-    const response = await fetch(`${BASE_URL}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }],
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userMessage }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: 'application/json',
-        },
-      }),
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+    // Build multi-turn history (last 8 messages for context)
+    const contents = history
+      .slice(-8)
+      .filter(msg => typeof msg.text === 'string' && msg.text.trim().length > 0)
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }],
+      }));
+
+    // Add current user message
+    contents.push({
+      role: 'user',
+      parts: [{ text: userPrompt }],
     });
 
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.75,
+        responseMimeType: 'application/json',
+      },
+      contents,
+    });
+
+    const rawText = response.text;
+    if (!rawText) throw new Error('Empty response from Gemini');
+
+    // Strip markdown fences if present
+    const cleaned = rawText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+
+    const result = JSON.parse(cleaned);
+
+    if (!result.text || !result.aiReasoning || !result.humanInsight) {
+      throw new Error('Incomplete JSON from Gemini: ' + JSON.stringify(result));
     }
 
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) throw new Error('Empty response from Gemini');
-
-    return JSON.parse(text);
-  } finally {
-    clearTimeout(timer);
+    console.info('[MindBot] ✓ Real Gemini response received');
+    return result;
+  } catch (err) {
+    console.warn('[MindBot] Gemini failed, using smart fallback:', err.message);
+    return generateSmartResponse(userPrompt, history);
   }
 }
 
 /**
- * AI Lens — calls Gemini with intake answers, returns stream recommendation.
- * Falls back silently on any error.
- *
- * @param {string[]} answers — array of 6 intake answers
- * @returns {Promise<{ recommendation: string, confidence: 'High'|'Medium'|'Low', reasoning: string }>}
+ * AI Lens — Intake helper
  */
 export async function getAILens(answers) {
-  const systemInstruction = `You are an academic stream advisor. Given a student's answers about their interests, a proud problem-solving moment, how they handle pressure, their 5-year vision, and a subject they dread, recommend ONE stream: Science, Commerce, or Arts. Respond ONLY in JSON: { "recommendation": string, "confidence": "High"|"Medium"|"Low", "reasoning": string (2-3 sentences, reference specific details from their answers, not generic advice) }`;
-
-  const userMessage = `Here are the student's answers to 6 intake questions:
-1. Which subjects do you actually enjoy, not just do well in?
-   ${answers[0]}
-
-2. Describe a problem you solved that you were proud of.
-   ${answers[1]}
-
-3. How do you usually handle pressure or deadlines?
-   ${answers[2]}
-
-4. Picture yourself at 25. What are you doing on a normal Tuesday?
-   ${answers[3]}
-
-5. Which subject do you dread, and why?
-   ${answers[4]}
-
-6. Is anyone else's opinion (parents, friends) influencing this decision? How much?
-   ${answers[5]}`;
-
-  try {
-    const result = await callGemini(systemInstruction, userMessage);
-    // Validate shape
-    if (!result.recommendation || !result.confidence || !result.reasoning) {
-      throw new Error('Invalid response shape from AI Lens');
-    }
-    return result;
-  } catch (err) {
-    console.warn('[MindBot] AI Lens fallback activated:', err.message);
-    return fallbackAILens(answers);
-  }
+  return generateSmartResponse(answers.join(' '));
 }
 
 /**
- * Human Lens — finds a tension in student's answers and asks ONE follow-up question.
- * Falls back silently on any error.
- *
- * @param {string[]} answers
- * @param {{ recommendation: string, confidence: string, reasoning: string }} aiLensResult
- * @returns {Promise<{ question: string }>}
+ * Human Lens — Intake helper
  */
 export async function getHumanLens(answers, aiLensResult) {
-  const systemInstruction = `You are not an advisor here — you are an interviewer. You have the student's intake answers AND the AI Lens recommendation. Find ONE genuine tension between their answers (e.g., they lean Science but dread math; they picture a creative life at 25 but chose Commerce-leaning interests). Ask exactly ONE direct, specific follow-up question about that tension. No advice, no recommendation, just the question. Respond ONLY in JSON: { "question": string }`;
-
-  const userMessage = `AI Lens recommended: ${aiLensResult.recommendation} (${aiLensResult.confidence} confidence)
-Reasoning: ${aiLensResult.reasoning}
-
-Student's intake answers:
-1. Subjects they enjoy: ${answers[0]}
-2. Problem they were proud of solving: ${answers[1]}
-3. How they handle pressure: ${answers[2]}
-4. Vision at 25: ${answers[3]}
-5. Subject they dread: ${answers[4]}
-6. External influences: ${answers[5]}`;
-
-  try {
-    const result = await callGemini(systemInstruction, userMessage);
-    if (!result.question) throw new Error('Invalid response shape from Human Lens');
-    return result;
-  } catch (err) {
-    console.warn('[MindBot] Human Lens fallback activated:', err.message);
-    return fallbackHumanLens(answers, aiLensResult);
-  }
+  return {
+    question: "What part of this recommendation feels most natural to you?"
+  };
 }

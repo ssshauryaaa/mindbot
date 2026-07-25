@@ -1,120 +1,160 @@
 /**
  * fallback.js
- * Local keyword-matching backup when Gemini API is unreachable.
- * Returns the SAME JSON shape as the real API calls — indistinguishable in a demo.
+ * Stateful, Context-Aware Conversational Intelligence Engine for MindBot.
+ * Tracks conversation history (NDA, Science, Commerce, Humanities, Design, Law)
+ * and answers follow-up questions contextually without topic jumping.
  */
 
-const SCIENCE_KEYWORDS = [
-  'physics', 'chemistry', 'biology', 'math', 'maths', 'mathematics',
-  'coding', 'programming', 'engineering', 'technology', 'research',
-  'experiment', 'lab', 'doctor', 'scientist', 'data', 'computer',
-  'machine', 'robot', 'space', 'astronomy', 'medicine', 'medical',
-  'calculate', 'formula', 'solve', 'logical', 'analytical', 'precise',
-];
-
-const COMMERCE_KEYWORDS = [
-  'business', 'commerce', 'economics', 'finance', 'accounting', 'money',
-  'entrepreneur', 'startup', 'management', 'marketing', 'trade', 'stock',
-  'investment', 'bank', 'profit', 'sales', 'company', 'corporate',
-  'market', 'strategy', 'leadership', 'organize', 'administration', 'ca',
-  'chartered', 'mba', 'budget', 'cost', 'revenue',
-];
-
-const ARTS_KEYWORDS = [
-  'art', 'design', 'creative', 'creativity', 'writing', 'literature',
-  'music', 'dance', 'theatre', 'drama', 'film', 'photography', 'paint',
-  'draw', 'sketch', 'history', 'geography', 'political', 'psychology',
-  'sociology', 'philosophy', 'journalism', 'media', 'story', 'poem',
-  'poetry', 'language', 'culture', 'social', 'human', 'express',
-];
-
-// Tension patterns for follow-up questions
-const TENSION_QUESTIONS = {
-  scienceButCreative: "You seem drawn to creative expression, yet you're leaning toward Science. What would it look like if you found a career where precision and creativity coexist — and does that feel possible to you?",
-  commerceButPassionate: "You describe passion-driven interests, but Commerce can sometimes feel transactional. What's the deeper 'why' behind choosing a business path — is it independence, impact, or something else?",
-  artsButPressured: "There's a real tension between what excites you creatively and what others expect. If no one's opinion mattered at all, what would your Tuesday at 25 actually look like?",
-  scienceButDreadsMath: "You've mentioned leaning toward Science, but there's hesitation around the exact subjects Science demands most. What part of Science excites you enough to push through that resistance?",
-  unsure: "You describe your ideal future quite vividly, but your subject preferences point in a different direction. Which matters more to you — the path that uses your current strengths, or the one that leads to the life you described?",
+// Context detection keywords
+const TOPICS = {
+  NDA: ['nda', 'armed forces', 'defence', 'defense', 'army', 'navy', 'air force', 'airforce', 'military', 'officer'],
+  SCIENCE_PCM: ['physics', 'math', 'maths', 'mathematics', 'pcm', 'engineer', 'engineering', 'tech', 'coding', 'computer science'],
+  SCIENCE_PCB: ['biology', 'doctor', 'medical', 'pcb', 'medicine', 'biotech', 'neuroscience', 'neet'],
+  COMMERCE: ['commerce', 'business', 'finance', 'economics', 'accounting', 'ca', 'mba', 'stock', 'banking', 'trade'],
+  HUMANITIES: ['humanities', 'arts', 'history', 'psychology', 'literature', 'sociology', 'political', 'journalism', 'philosophy', 'media'],
+  DESIGN: ['design', 'art', 'creative', 'ux', 'ui', 'architecture', 'animation', 'fashion'],
+  LAW: ['law', 'legal', 'lawyer', 'clat', 'justice', 'advocate'],
 };
 
-function scoreAnswers(answers) {
-  const text = answers.join(' ').toLowerCase();
-  let science = 0, commerce = 0, arts = 0;
-
-  SCIENCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) science++; });
-  COMMERCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) commerce++; });
-  ARTS_KEYWORDS.forEach(kw => { if (text.includes(kw)) arts++; });
-
-  return { science, commerce, arts };
+/**
+ * Detects the dominant topic from text or conversation history
+ */
+function detectTopic(text) {
+  const lower = text.toLowerCase();
+  for (const [topic, keywords] of Object.entries(TOPICS)) {
+    if (keywords.some(kw => lower.includes(kw))) {
+      return topic;
+    }
+  }
+  return null;
 }
 
-function pickStream(scores) {
-  const { science, commerce, arts } = scores;
-  const max = Math.max(science, commerce, arts);
-  if (max === 0) return 'Commerce'; // neutral default
-  if (science === max) return 'Science';
-  if (commerce === max) return 'Commerce';
-  return 'Arts';
+/**
+ * Detects topic from history if the current prompt is a follow-up
+ */
+function getActiveContext(prompt, history = []) {
+  // Check current prompt first
+  const currentTopic = detectTopic(prompt);
+  if (currentTopic) return currentTopic;
+
+  // Otherwise inspect past messages in reverse order
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msgText = typeof history[i]?.text === 'string' ? history[i].text : '';
+    const topic = detectTopic(msgText);
+    if (topic) return topic;
+  }
+
+  return 'GENERAL';
 }
 
-function pickConfidence(scores) {
-  const vals = Object.values(scores);
-  const max = Math.max(...vals);
-  const total = vals.reduce((a, b) => a + b, 0);
-  if (total === 0) return 'Low';
-  const ratio = max / total;
-  if (ratio > 0.55) return 'High';
-  if (ratio > 0.4) return 'Medium';
-  return 'Low';
-}
+/**
+ * Generates a rich, context-aware conversational response.
+ *
+ * @param {string} prompt - User message
+ * @param {Array} history - Past message thread for context
+ * @returns {{ text: string, aiReasoning: string, humanInsight: string }}
+ */
+export function generateSmartResponse(prompt, history = []) {
+  const cleanPrompt = prompt.toLowerCase().trim();
+  const context = getActiveContext(prompt, history);
 
-function buildReasoning(stream, answers) {
-  const text = answers.join(' ').toLowerCase();
+  const isFollowUp = /after|options|career|doing next|what next|scope|jobs|prospects|can i do/i.test(cleanPrompt);
+  const isStreamChoice = /which|choose|select|recommend|prepare|pick|suggest/i.test(cleanPrompt);
 
-  const reasoningMap = {
-    Science: `Based on the subjects and problems you described, Science aligns well with your analytical strengths and curiosity-driven problem-solving. Your vision for the future suggests you thrive in structured, discovery-oriented environments. The skills you mentioned — especially around ${text.includes('math') ? 'mathematics' : text.includes('code') || text.includes('program') ? 'technology' : 'logic and analysis'} — are core to Science pathways.`,
-    Commerce: `Your answers reflect a strong orientation toward systems, strategy, and real-world outcomes — hallmarks of someone well-suited for Commerce. The way you described handling pressure and your 5-year vision suggests you're drawn to environments where decisions have tangible impact. Commerce offers the blend of analytical thinking and people-facing work your answers point toward.`,
-    Arts: `The way you described your proudest moment and your vision at 25 reveals someone who thinks in stories, ideas, and meaning — the defining quality of Arts and Humanities students. Your comfort with ambiguity and your reflective approach to pressure suggest you'd thrive in disciplines that reward interpretation and creative thinking over rote correctness.`,
+  // 1. Specific NDA Queries
+  if (cleanPrompt.includes('nda') || cleanPrompt.includes('armed forces') || cleanPrompt.includes('defence') || cleanPrompt.includes('army') || cleanPrompt.includes('air force') || cleanPrompt.includes('navy')) {
+    return {
+      text: "If you want to prepare for NDA (National Defence Academy), **Science with Physics and Mathematics (PCM)** is the most recommended stream. Physics and Math are mandatory for the Air Force and Navy wings of NDA. For the Army wing, any stream is eligible, but PCM gives you an added advantage for technical officer entries (like 10+2 TES Entry).",
+      aiReasoning: "Mandatory Eligibility Criterion: The Indian Air Force and Navy wings of NDA strictly require Physics and Mathematics at the 10+2 level. PCM also qualifies you for the 10+2 Technical Entry Scheme (TES).",
+      humanInsight: "SSB & Written Preparation: NDA requires balancing academic strength in Math and General Ability with physical endurance and leadership traits evaluated during the SSB interview."
+    };
+  }
+
+  // 2. Career Options & Follow-up Queries (Context-Aware!)
+  if (isFollowUp) {
+    if (context === 'NDA' || cleanPrompt.includes('nda')) {
+      return {
+        text: "After 12th PCM with an NDA/Defence focus, your top career pathways include: 1) Executive & Flying Officer Commissions in the Indian Army, Navy, or Air Force via NDA, 2) 10+2 Technical Entry Scheme (TES) for direct Military Engineering, 3) Commercial Aviation & Pilot training, 4) Aerospace & Defense R&D (DRDO), and 5) Computer Science / Robotics Engineering.",
+        aiReasoning: "Defense & Engineering Pathway Mapping: 10+2 PCM qualifies you for both NDA officer entries and technical engineering degrees, preserving maximum career flexibility.",
+        humanInsight: "Leadership & Service: Armed Forces careers offer unparalleled early leadership and service pride. Start building physical fitness and SSB situational judgment early alongside 12th studies."
+      };
+    }
+
+    if (context === 'SCIENCE_PCM') {
+      return {
+        text: "With 12th Science (PCM), your major career pathways include: 1) Engineering & Tech (Computer Science, AI, Mechanical, Aerospace), 2) Defence Officer entries (NDA, Technical Entry Scheme), 3) Data Science & Quantitative Finance, 4) Architecture (NATA/JEE Paper 2), and 5) Pure Scientific Research & Astronomy (IISER / IISc).",
+        aiReasoning: "Academic Versatility Signal: Science PCM provides entry to technical, defense, research, and analytical fields, making it the broadest stream for post-12th options.",
+        humanInsight: "Personal Fit: PCM leaves all doors open, but demand high analytical discipline. Are you more excited by building software/tech, physical engineering, or defense service?"
+      };
+    }
+
+    if (context === 'HUMANITIES') {
+      return {
+        text: "After Humanities/Arts, key career options include: 1) Corporate Law & Litigation (BA LLB via CLAT), 2) Clinical & Industrial Psychology, 3) UX/UI Design & Product Research, 4) Civil Services (UPSC / IAS / IFS), 5) Journalism & New Media, and 6) Public Policy & International Relations.",
+        aiReasoning: "Qualitative Market Demand: Growing industry demand for human-centered skillsets in UX research, corporate law, policy analysis, and strategic communication.",
+        humanInsight: "Modern Industry Relevance: Humanities combined with digital tools or analytical methods is highly lucrative. Focus on building strong writing, critical analysis, and portfolio proof."
+      };
+    }
+
+    if (context === 'COMMERCE') {
+      return {
+        text: "After 12th Commerce, major career options include: 1) Chartered Accountancy (CA) & ACCA, 2) Investment Banking & Equity Research, 3) Corporate Finance & Business Analytics, 4) BBA/IPMAT for Top IIM Integrated Management, and 5) Product Entrepreneurship.",
+        aiReasoning: "Financial & Strategic Aptitude: Commerce builds foundational skills in capital allocation, regulatory accounting, and commercial strategy across corporate sectors.",
+        humanInsight: "Career Direction: Commerce offers high financial upside. Consider whether you prefer working with structured financial numbers or managing teams and scaling businesses."
+      };
+    }
+  }
+
+  // 3. Direct Topic Matches
+  if (cleanPrompt.includes('humanities') || cleanPrompt.includes('arts')) {
+    return {
+      text: "Humanities (Arts) explores human behavior, history, psychology, literature, and social systems. It's a fantastic stream if you love critical thinking, writing, understanding society, or creative design. Career fields include UX Research, Law, Psychology, Journalism, and Public Policy.",
+      aiReasoning: "Aptitude Signal: High alignment for students who excel in verbal reasoning, contextual analysis, and critical discourse over formulaic problem-solving.",
+      humanInsight: "Field Reality: Humanities opens diverse non-linear paths. What specific area — human behavior, law, writing, or design — draws your curiosity most?"
+    };
+  }
+
+  if (cleanPrompt.includes('commerce') || cleanPrompt.includes('business')) {
+    return {
+      text: "Commerce focuses on business operations, financial markets, accounting, and economics. It is ideal if you enjoy numerical strategy, organizational leadership, and real-world trade dynamics.",
+      aiReasoning: "Domain Relevance: Direct preparation for commercial enterprise, financial markets, and organizational management frameworks.",
+      humanInsight: "Practical Application: Business is ultimately about solving market problems for people. Do you see yourself analyzing financial growth or leading projects and startups?"
+    };
+  }
+
+  // 4. General Stream Selection Query
+  if (isStreamChoice) {
+    return {
+      text: "To choose the right stream, match your natural subject interest with your target goal: For NDA (Air Force/Navy) or Engineering choose **Science (PCM)**. For Medical/Biotech choose **Science (PCB)**. For Business, Finance & Accounting choose **Commerce**. For Law, Design, Psychology & Journalism choose **Humanities**.",
+      aiReasoning: "Subject-to-Career Alignment: Evaluating primary subject interest against professional entrance exam requirements across Indian higher education.",
+      humanInsight: "Decision Strategy: Pick the stream where you feel curious to learn every day, rather than what feels pressured by external expectations."
+    };
+  }
+
+  // 5. Context-driven default fallback
+  if (context === 'NDA' || context === 'SCIENCE_PCM') {
+    return {
+      text: `Regarding your query about "${prompt}": For Science (PCM) and NDA pathways, maintaining strong fundamentals in Class 11/12 Mathematics and Physics is essential. This prepares you simultaneously for NDA written exams, JEE Main, and technical officer entries.`,
+      aiReasoning: "Curriculum Synergy: Class 11 & 12 PCM syllabus directly covers the Mathematics and Physics portions of competitive entrance examinations.",
+      humanInsight: "Preparation Balance: Consistent daily practice in mathematics and general knowledge builds long-term confidence for competitive written papers.",
+    };
+  }
+
+  return {
+    text: `Synaptica analysis for "${prompt}": Exploring your academic and career choices involves evaluating your daily subject comfort against your long-term vision. Every stream opens specialized career avenues when aligned with your authentic interests.`,
+    aiReasoning: "Guidance Framework: Comparing student subject preferences and goal clarity against higher education eligibility criteria.",
+    humanInsight: "Practical Advice: Speak with mentors or professionals in your fields of interest to understand what their daily work routine actually looks like.",
   };
-
-  return reasoningMap[stream];
 }
 
-function pickFollowUpQuestion(stream, answers) {
-  const text = answers.join(' ').toLowerCase();
-
-  const dreadsMath = text.includes('math') || text.includes('maths') || text.includes('mathematics');
-  const mentionsCreative = ARTS_KEYWORDS.some(kw => text.includes(kw));
-  const mentionsPressure = text.includes('stress') || text.includes('pressure') || text.includes('overwhelm');
-  const parentsInfluence = text.includes('parent') || text.includes('family') || text.includes('expect');
-
-  if (stream === 'Science' && dreadsMath) return TENSION_QUESTIONS.scienceButDreadsMath;
-  if (stream === 'Science' && mentionsCreative) return TENSION_QUESTIONS.scienceButCreative;
-  if (stream === 'Commerce' && mentionsCreative) return TENSION_QUESTIONS.commerceButPassionate;
-  if (stream === 'Arts' && (mentionsPressure || parentsInfluence)) return TENSION_QUESTIONS.artsButPressured;
-  return TENSION_QUESTIONS.unsure;
-}
-
-/**
- * Fallback for AI Lens
- * @param {string[]} answers — array of 6 intake answers
- * @returns {{ recommendation: string, confidence: string, reasoning: string }}
- */
+// Legacy exports for intake compatibility
 export function fallbackAILens(answers) {
-  const scores = scoreAnswers(answers);
-  const recommendation = pickStream(scores);
-  const confidence = pickConfidence(scores);
-  const reasoning = buildReasoning(recommendation, answers);
-  return { recommendation, confidence, reasoning };
+  const text = answers.join(' ');
+  return generateSmartResponse(text);
 }
 
-/**
- * Fallback for Human Lens
- * @param {string[]} answers
- * @param {{ recommendation: string }} aiLensResult
- * @returns {{ question: string }}
- */
 export function fallbackHumanLens(answers, aiLensResult) {
-  const question = pickFollowUpQuestion(aiLensResult.recommendation, answers);
-  return { question };
+  return {
+    question: "What part of this recommendation feels most natural to you?"
+  };
 }

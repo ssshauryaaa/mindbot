@@ -2,76 +2,47 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Bookmark, Compass, LayoutGrid, BarChart2,
+  Plus, Bookmark, Compass, LayoutGrid,
   MoreHorizontal, Mic, Settings2, MessageSquare,
-  ChevronDown, Lightbulb, Clapperboard, TrendingUp,
-  HelpCircle, Sparkles, Brain, Cpu, User, ArrowLeft,
-  Copy, Check, LayoutDashboard, Paperclip, RefreshCw,
+  ChevronDown, Sparkles, Brain, Cpu,
+  Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
+  Download, Clock,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
 import FloatingActionButton from './ui/floating-action-button';
+import { getSynthesizedResponse } from '../services/gemini';
 
 /* ════════════════════════════════════════════════════════════════
-   1. BACKGROUND — Vertical beam + ambient glow + particles
+   1. BACKGROUND — video + wave lines + particles
 ════════════════════════════════════════════════════════════════ */
 function BeamBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-      {/* ── Video background ──────────────────────────────── */}
       <video
-        autoPlay
-        loop
-        muted
-        playsInline
+        autoPlay loop muted playsInline
         className="absolute inset-0 w-full h-full object-cover"
         style={{ opacity: 0.55 }}
       >
         <source src="/aurora-1784998368911.webm" type="video/webm" />
       </video>
-      {/* Dark tint — exact match with landing page */}
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)' }} />
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.50)' }} />
 
-      {/* ── Flowing diagonal abstract wave lines (bottom-left to upper-right) ── */}
-      {/* These match the dark streaks visible across the screenshot background  */}
-      <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox="0 0 1440 900"
-        preserveAspectRatio="xMidYMid slice"
-        fill="none"
-      >
-        {/* Main sweeping curves — lower-left origin, arc to upper-right */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice" fill="none">
         <path d="M -60 780 Q 340 500 680 300 Q 860 200 1100 80"
           stroke="rgba(255,255,255,0.055)" strokeWidth="1.4" strokeLinecap="round"/>
         <path d="M -80 850 Q 300 560 660 340 Q 850 225 1120 95"
           stroke="rgba(255,255,255,0.035)" strokeWidth="1.0" strokeLinecap="round"/>
         <path d="M 0 900 Q 380 620 700 400 Q 900 275 1160 120"
           stroke="rgba(255,255,255,0.025)" strokeWidth="0.8" strokeLinecap="round"/>
-
-        {/* Tighter inner arcs */}
-        <path d="M 50 820 Q 380 560 680 360 Q 870 255 1080 110"
-          stroke="rgba(255,255,255,0.03)" strokeWidth="0.7" strokeLinecap="round"/>
-        <path d="M -20 730 Q 300 470 640 275 Q 830 175 1050 55"
-          stroke="rgba(255,255,255,0.045)" strokeWidth="1.1" strokeLinecap="round"/>
-
-        {/* Lower subtle ground-plane arcs */}
-        <path d="M -100 950 Q 400 680 800 500 Q 980 415 1200 300"
-          stroke="rgba(255,255,255,0.018)" strokeWidth="0.9" strokeLinecap="round"/>
-        <path d="M 100 900 Q 480 700 820 540 Q 1000 460 1300 370"
-          stroke="rgba(255,255,255,0.022)" strokeWidth="0.7" strokeLinecap="round"/>
-
-        {/* Far right edge decorative strokes */}
         <path d="M 1440 900 C 1360 780 1320 660 1380 520 C 1410 455 1440 420 1420 340"
           stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeLinecap="round"/>
         <path d="M 1440 860 C 1350 730 1300 600 1370 470 C 1405 405 1440 375 1415 295"
           stroke="rgba(255,255,255,0.035)" strokeWidth="0.8" strokeLinecap="round"/>
-        <path d="M 1440 820 C 1340 700 1290 560 1360 440"
-          stroke="rgba(255,255,255,0.025)" strokeWidth="0.6" strokeLinecap="round" strokeDasharray="4 8"/>
       </svg>
 
-
-      {/* ── Star-dust particles ──────────────────────────── */}
       {[
         { x:'61%', y:'12%', s:1.8, o:0.65 },
         { x:'72%', y:'26%', s:1.1, o:0.40 },
@@ -79,11 +50,8 @@ function BeamBackground() {
         { x:'80%', y:'18%', s:1.0, o:0.38 },
         { x:'30%', y:'20%', s:1.0, o:0.30 },
         { x:'22%', y:'43%', s:1.5, o:0.22 },
-        { x:'76%', y:'58%', s:1.0, o:0.18 },
         { x:'45%', y:'7%',  s:1.2, o:0.50 },
-        { x:'38%', y:'32%', s:1.0, o:0.20 },
         { x:'88%', y:'36%', s:1.4, o:0.25 },
-        { x:'15%', y:'60%', s:1.0, o:0.15 },
       ].map((p, i) => (
         <div key={i} className="absolute rounded-full bg-white"
           style={{ left:p.x, top:p.y, width:p.s, height:p.s, opacity:p.o }}/>
@@ -93,31 +61,24 @@ function BeamBackground() {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   2. LOGO MARK — Glowing triangular synapse shape
+   2. LOGO MARK
 ════════════════════════════════════════════════════════════════ */
 function LogoMark({ size = 48 }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: size * 1.8, height: size * 1.8 }}>
-      {/* Outer glow ring */}
       <div className="absolute rounded-full" style={{
         width: size * 1.8, height: size * 1.8,
         background: 'radial-gradient(circle, rgba(180,160,255,0.15) 0%, transparent 65%)',
         filter: 'blur(14px)',
       }}/>
-      {/* Inner pulse ring */}
       <div className="absolute rounded-full animate-pulse" style={{
         width: size, height: size,
         background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 65%)',
         filter: 'blur(6px)',
       }}/>
-      {/* SVG mark */}
-      <svg width={size} height={size} viewBox="0 0 52 52" fill="none"
-        className="relative z-10 animate-logo-glow">
-        {/* Left arm */}
+      <svg width={size} height={size} viewBox="0 0 52 52" fill="none" className="relative z-10">
         <line x1="26" y1="9" x2="9"  y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
-        {/* Right arm */}
         <line x1="26" y1="9" x2="43" y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
-        {/* Diagonal inner notch — makes it look like the Behance play-arrow mark */}
         <line x1="17" y1="28" x2="32" y2="20" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
       </svg>
     </div>
@@ -125,39 +86,17 @@ function LogoMark({ size = 48 }) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   3. SIDEBAR — Icon-only (60 px) with tooltips
+   3. SIDEBAR
 ════════════════════════════════════════════════════════════════ */
-function Sidebar({ activePage, onNavigate }) {
+function Sidebar({ onNavigate }) {
   const navigate = useNavigate();
-
   const dockItems = [
-    {
-      title: 'New Session',
-      icon: <Plus className="h-full w-full" />,
-      onClick: () => onNavigate('new')
-    },
-    {
-      title: 'History',
-      icon: <Bookmark className="h-full w-full" />,
-      onClick: () => {}
-    },
-    {
-      title: 'Landing Page',
-      icon: <Compass className="h-full w-full" />,
-      onClick: () => navigate('/landing')
-    },
-    {
-      title: 'All Tools',
-      icon: <LayoutGrid className="h-full w-full" />,
-      onClick: () => {}
-    },
-    {
-      title: 'More',
-      icon: <MoreHorizontal className="h-full w-full" />,
-      onClick: () => {}
-    }
+    { title: 'New Session',  icon: <Plus className="h-full w-full" />,         onClick: () => onNavigate('new') },
+    { title: 'History',      icon: <Bookmark className="h-full w-full" />,     onClick: () => {} },
+    { title: 'Landing Page', icon: <Compass className="h-full w-full" />,      onClick: () => navigate('/landing') },
+    { title: 'All Tools',    icon: <LayoutGrid className="h-full w-full" />,   onClick: () => {} },
+    { title: 'More',         icon: <MoreHorizontal className="h-full w-full" />, onClick: () => {} },
   ];
-
   return (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
       <FloatingDock items={dockItems} orientation="vertical" />
@@ -166,21 +105,20 @@ function Sidebar({ activePage, onNavigate }) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   4. SHARED INPUT BOX
+   4. TYPEWRITER HOOK
 ════════════════════════════════════════════════════════════════ */
 const PLACEHOLDER_TEXTS = [
   "What do you want to know?",
   "Ask me anything...",
-  "Describe a problem to solve...",
+  "Which stream should I choose?",
   "Let's explore an idea together...",
   "What's on your mind today?",
-  "Need help with something?",
 ];
 
 function useTypewriter(texts, { typeSpeed = 55, deleteSpeed = 30, pauseMs = 1800 } = {}) {
   const [displayed, setDisplayed] = useState('');
   const [textIndex, setTextIndex] = useState(0);
-  const [phase, setPhase] = useState('typing'); // 'typing' | 'pausing' | 'deleting'
+  const [phase, setPhase] = useState('typing');
 
   useEffect(() => {
     const current = texts[textIndex];
@@ -198,22 +136,120 @@ function useTypewriter(texts, { typeSpeed = 55, deleteSpeed = 30, pauseMs = 1800
       if (displayed.length > 0) {
         timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), deleteSpeed);
       } else {
-        setTextIndex((i) => (i + 1) % texts.length);
+        setTextIndex(i => (i + 1) % texts.length);
         setPhase('typing');
       }
     }
-
     return () => clearTimeout(timeout);
   }, [displayed, phase, textIndex, texts, typeSpeed, deleteSpeed, pauseMs]);
 
   return displayed;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   5. MARKDOWN RENDERER — renders ** bold **, # headers, - bullets
+════════════════════════════════════════════════════════════════ */
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // H1
+    if (line.startsWith('# ')) {
+      elements.push(
+        <h1 key={i} className="text-2xl font-semibold text-white/95 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.02em' }}>
+          {parseBold(line.slice(2))}
+        </h1>
+      );
+    }
+    // H2
+    else if (line.startsWith('## ')) {
+      elements.push(
+        <h2 key={i} className="text-lg font-semibold text-white/90 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.01em' }}>
+          {parseBold(line.slice(3))}
+        </h2>
+      );
+    }
+    // H3
+    else if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={i} className="text-base font-semibold text-white/85 mt-4 mb-1.5 first:mt-0">
+          {parseBold(line.slice(4))}
+        </h3>
+      );
+    }
+    // Bullet
+    else if (line.startsWith('- ') || line.startsWith('• ')) {
+      const bullets = [];
+      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('• '))) {
+        bullets.push(
+          <li key={i} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
+            <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
+            <span>{parseBold(lines[i].slice(2))}</span>
+          </li>
+        );
+        i++;
+      }
+      elements.push(<ul key={`ul-${i}`} className="space-y-2 my-2">{bullets}</ul>);
+      continue;
+    }
+    // Numbered list
+    else if (/^\d+\.\s/.test(line)) {
+      const items = [];
+      let num = 1;
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(
+          <li key={i} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
+            <span className="text-white/35 text-sm tabular-nums shrink-0 min-w-[1.2rem] text-right">{num}.</span>
+            <span>{parseBold(lines[i].replace(/^\d+\.\s/, ''))}</span>
+          </li>
+        );
+        i++;
+        num++;
+      }
+      elements.push(<ol key={`ol-${i}`} className="space-y-2 my-2">{items}</ol>);
+      continue;
+    }
+    // Empty line
+    else if (line.trim() === '') {
+      // skip extra blanks
+    }
+    // Normal paragraph
+    else {
+      elements.push(
+        <p key={i} className="text-white/80 text-[15px] leading-relaxed">
+          {parseBold(line)}
+        </p>
+      );
+    }
+
+    i++;
+  }
+
+  return elements;
+}
+
+function parseBold(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={idx} className="text-white/95 font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   6. INPUT BOX
+════════════════════════════════════════════════════════════════ */
 function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = false }) {
   const textareaRef = useRef(null);
   const placeholder = useTypewriter(PLACEHOLDER_TEXTS);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -225,19 +261,13 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
 
   return (
     <div className="glass-input rounded-2xl w-full relative" style={{ borderRadius: 18 }}>
-      {/* Animated typewriter placeholder — only shown when input is empty */}
       {!value && (
         <div
           aria-hidden="true"
           className="absolute pointer-events-none select-none text-[15px] text-white/30 leading-relaxed"
-          style={{
-            top: large ? 20 : 14,
-            left: 20,
-            fontFamily: 'Inter, sans-serif',
-          }}
+          style={{ top: large ? 20 : 14, left: 20, fontFamily: 'Inter, sans-serif' }}
         >
           {placeholder}
-          {/* Blinking cursor */}
           <span
             className="inline-block w-px h-[1em] bg-white/30 ml-px align-middle"
             style={{ animation: 'blink 1s step-end infinite' }}
@@ -245,7 +275,6 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
         </div>
       )}
 
-      {/* Text area — native placeholder hidden; we use the overlay above */}
       <textarea
         ref={textareaRef}
         value={value}
@@ -257,10 +286,7 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
         style={{ fontFamily: 'Inter, sans-serif', minHeight: large ? 72 : 44 }}
       />
 
-
-      {/* Bottom control row */}
       <div className="flex items-center justify-between px-4 pb-3.5 pt-1 gap-2">
-        {/* Left: Mode pill */}
         <button onClick={() => onModeChange(activeMode === 'Auto' ? 'Focused' : 'Auto')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
@@ -269,41 +295,18 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
           <ChevronDown className="w-3 h-3 text-white/50"/>
         </button>
 
-        {/* Right: action icons with FloatingActionButton */}
         <div className="flex items-center gap-2">
           <FloatingActionButton
             size="sm"
             label="Quick Tools"
             positionClassName="relative"
             actions={[
-              {
-                id: "attach",
-                label: "Attach File",
-                icon: <Paperclip className="w-4 h-4 text-white" />,
-                onClick: () => onChange(value + " [Attachment] "),
-              },
-              {
-                id: "code",
-                label: "Insert Code",
-                icon: <Code className="w-4 h-4 text-white" />,
-                onClick: () => onChange(value + "\n```js\n// Code here\n```\n"),
-              },
-              {
-                id: "voice",
-                label: "Voice Dictation",
-                icon: <Mic className="w-4 h-4 text-white" />,
-                onClick: () => onSend("Voice dictation input"),
-              },
-              {
-                id: "settings",
-                label: "Model Parameters",
-                icon: <Settings2 className="w-4 h-4 text-white" />,
-                onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto"),
-              },
+              { id: "attach", label: "Attach File",      icon: <Paperclip className="w-4 h-4 text-white" />, onClick: () => onChange(value + " [Attachment] ") },
+              { id: "code",   label: "Insert Code",      icon: <Code className="w-4 h-4 text-white" />,      onClick: () => onChange(value + "\n```js\n// Code here\n```\n") },
+              { id: "voice",  label: "Voice Dictation",  icon: <Mic className="w-4 h-4 text-white" />,       onClick: () => {} },
+              { id: "settings", label: "Model Settings", icon: <Settings2 className="w-4 h-4 text-white" />, onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto") },
             ]}
           />
-
-          {/* Send */}
           <button onClick={onSend} disabled={!canSend} aria-label="Send"
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer"
             style={{
@@ -321,42 +324,49 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
 }
 
 /* ════════════════════════════════════════════════════════════════
-   5. SUGGESTION CHIPS
+   7. USER MESSAGE — small pill on the right
 ════════════════════════════════════════════════════════════════ */
-const SUGGESTIONS = [
-  { label: 'Generate ideas',  icon: Lightbulb },
-  { label: 'Motion concept',  icon: Clapperboard },
-  { label: 'Market analysis', icon: TrendingUp },
-  { label: 'Ask AI anything', icon: HelpCircle },
-];
-
-function SuggestionChips({ onSelect, compact = false }) {
+function UserMessage({ msg }) {
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-2.5 ${compact ? 'justify-start' : ''}`}>
-      {SUGGESTIONS.map(({ label, icon: Icon }) => (
-        <button key={label} onClick={() => onSelect(label)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white/65 hover:text-white transition-all duration-200 cursor-pointer"
-          style={{
-            background: 'rgba(255,255,255,0.045)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            backdropFilter: 'blur(10px)',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.18)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.045)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.09)'; }}>
-          <Icon className="w-4 h-4 text-white/45" strokeWidth={1.5}/>
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10, x: 10 }}
+      animate={{ opacity: 1, y: 0, x: 0 }}
+      transition={{ duration: 0.25 }}
+      className="flex justify-end"
+    >
+      <div
+        className="max-w-md text-sm text-white/90 px-4 py-2.5 rounded-full"
+        style={{
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.14)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          lineHeight: 1.5,
+        }}
+      >
+        {msg.text}
+      </div>
+    </motion.div>
   );
 }
 
 /* ════════════════════════════════════════════════════════════════
-   6. MESSAGE BUBBLE
+   8. AI MESSAGE — text directly on background, rich markdown
 ════════════════════════════════════════════════════════════════ */
-function MessageBubble({ msg }) {
+function AIMessage({ msg, thinkingMs, onRegenerate }) {
   const [copied, setCopied] = useState(false);
-  const [liked, setLiked] = useState(null); // null | 'up' | 'down'
+  const [liked, setLiked] = useState(null);
+  const [showMore, setShowMore] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const moreRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showMore) return;
+    const handler = e => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMore]);
 
   const copyText = () => {
     navigator.clipboard.writeText(msg.text);
@@ -364,96 +374,154 @@ function MessageBubble({ msg }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (msg.sender === 'user') {
-    return (
-      <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
-        className="flex justify-end items-end gap-3">
-        <div
-          className="max-w-lg px-5 py-3.5 rounded-2xl rounded-br-sm text-sm text-white/90 leading-relaxed"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-          }}
-        >
-          {msg.text}
-          <div className="text-[10px] font-mono text-white/25 text-right mt-1.5">{msg.time}</div>
-        </div>
-        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-          style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.14)', backdropFilter:'blur(12px)' }}>
-          <User className="w-4 h-4 text-white/70"/>
-        </div>
-      </motion.div>
-    );
-  }
+  const shareResponse = async () => {
+    const shareData = { title: 'Synaptica Response', text: msg.text };
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try { await navigator.share(shareData); return; } catch {}
+    }
+    // Fallback: copy to clipboard
+    await navigator.clipboard.writeText(msg.text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadResponse = () => {
+    const fullText = [
+      msg.text,
+      msg.aiReasoning ? `\n---\nAI Reasoning:\n${msg.aiReasoning}` : '',
+      msg.humanInsight ? `\nHuman Context:\n${msg.humanInsight}` : '',
+    ].join('');
+    const blob = new Blob([fullText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `synaptica-response-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRegenerate = async () => {
+    if (isRegenerating || !onRegenerate) return;
+    setIsRegenerating(true);
+    await onRegenerate();
+    setIsRegenerating(false);
+  };
+
+  const copyMarkdown = () => {
+    navigator.clipboard.writeText(msg.text);
+    setShowMore(false);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const thinkingLabel = thinkingMs != null
+    ? `Thought for ${Math.round(thinkingMs / 1000)} Second${Math.round(thinkingMs / 1000) !== 1 ? 's' : ''}`
+    : null;
 
   return (
-    <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}
-      className="flex justify-start items-start gap-3">
-      {/* Avatar */}
-      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', backdropFilter:'blur(12px)' }}>
-        <Sparkles className="w-3.5 h-3.5 text-white/60"/>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="flex flex-col gap-3"
+    >
+      {/* "Thought for N seconds" chip */}
+      {thinkingLabel && (
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/40"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <Clock className="w-3 h-3" />
+            <span style={{ fontFamily: 'Inter, sans-serif' }}>{thinkingLabel}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Main response — rendered directly on background */}
+      <div className="max-w-3xl space-y-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+        {renderMarkdown(msg.text)}
       </div>
 
-      {/* Bubble */}
-      <div className="max-w-2xl space-y-3 min-w-0">
-        <div
-          className="px-5 py-4 rounded-2xl rounded-tl-sm text-sm text-white/88 leading-relaxed"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-          }}
-        >
-          <p>{msg.text}</p>
-
-          {/* Dual-stream insight cards */}
-          {(msg.aiReasoning || msg.humanInsight) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
-              {msg.aiReasoning && (
-                <div className="p-3 rounded-xl text-xs"
-                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/50">
-                    <Cpu className="w-3 h-3"/><span>AI Compute Stream</span>
-                  </div>
-                  <p className="text-white/55 leading-snug">{msg.aiReasoning}</p>
-                </div>
-              )}
-              {msg.humanInsight && (
-                <div className="p-3 rounded-xl text-xs"
-                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/50">
-                    <Brain className="w-3 h-3"/><span>Human Context</span>
-                  </div>
-                  <p className="text-white/55 leading-snug">{msg.humanInsight}</p>
-                </div>
-              )}
+      {/* Dual-stream insight cards */}
+      {(msg.aiReasoning || msg.humanInsight) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-3xl mt-1">
+          {msg.aiReasoning && (
+            <div className="p-3 rounded-xl text-xs"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
+                <Cpu className="w-3 h-3"/><span>AI Stream</span>
+              </div>
+              <p className="text-white/45 leading-snug">{msg.aiReasoning}</p>
+            </div>
+          )}
+          {msg.humanInsight && (
+            <div className="p-3 rounded-xl text-xs"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
+                <Brain className="w-3 h-3"/><span>Human Context</span>
+              </div>
+              <p className="text-white/45 leading-snug">{msg.humanInsight}</p>
             </div>
           )}
         </div>
+      )}
 
-        {/* Action row */}
-        <div className="flex items-center gap-2 pl-1">
-          <span className="text-[10px] font-mono text-white/20">{msg.time} · Verified</span>
-          <div className="flex items-center gap-1.5 ml-2">
-            <button onClick={copyText} title="Copy response"
-              className="flex items-center gap-1 text-[11px] text-white/25 hover:text-white/60 transition-colors cursor-pointer">
-              {copied ? <Check className="w-3.5 h-3.5 text-white/60"/> : <Copy className="w-3.5 h-3.5"/>}
-            </button>
-            <button onClick={() => setLiked('up')} title="Good response"
-              className={`text-[11px] hover:text-white/60 transition-colors cursor-pointer ${liked==='up' ? 'text-white/80' : 'text-white/25'}`}>
-              <ThumbsUp className="w-3.5 h-3.5"/>
-            </button>
-            <button onClick={() => setLiked('down')} title="Bad response"
-              className={`text-[11px] hover:text-white/60 transition-colors cursor-pointer ${liked==='down' ? 'text-white/80' : 'text-white/25'}`}>
-              <ThumbsDown className="w-3.5 h-3.5"/>
-            </button>
-            <button title="Regenerate" className="text-white/25 hover:text-white/60 transition-colors cursor-pointer">
-              <RefreshCw className="w-3.5 h-3.5"/>
-            </button>
+      {/* Action bar */}
+      <div className="flex items-center justify-between max-w-3xl pt-1">
+        {/* Left actions */}
+        <div className="flex items-center gap-1">
+          <ActionBtn title="Share" onClick={shareResponse}>
+            <Share2 className="w-3.5 h-3.5" />
+          </ActionBtn>
+          <ActionBtn title="Download as .txt" onClick={downloadResponse}>
+            <Download className="w-3.5 h-3.5" />
+          </ActionBtn>
+          <ActionBtn title="Copy" onClick={copyText}>
+            {copied ? <Check className="w-3.5 h-3.5 text-white/70" /> : <Copy className="w-3.5 h-3.5" />}
+          </ActionBtn>
+          <ActionBtn title="Regenerate" onClick={handleRegenerate} spinning={isRegenerating}>
+            <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+          </ActionBtn>
+        </div>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-1 relative">
+          <ActionBtn title="Good response" onClick={() => setLiked(liked === 'up' ? null : 'up')} active={liked === 'up'}>
+            <ThumbsUp className="w-3.5 h-3.5" />
+          </ActionBtn>
+          <ActionBtn title="Bad response" onClick={() => setLiked(liked === 'down' ? null : 'down')} active={liked === 'down'}>
+            <ThumbsDown className="w-3.5 h-3.5" />
+          </ActionBtn>
+          {/* More dropdown */}
+          <div className="relative" ref={moreRef}>
+            <ActionBtn title="More options" onClick={() => setShowMore(v => !v)} active={showMore}>
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </ActionBtn>
+            {showMore && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 4 }}
+                transition={{ duration: 0.14 }}
+                className="absolute right-0 bottom-9 z-50 rounded-xl overflow-hidden"
+                style={{ background: 'rgba(20,20,20,0.96)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 180, backdropFilter: 'blur(20px)' }}
+              >
+                {[
+                  { label: 'Copy as Markdown', action: copyMarkdown },
+                  { label: 'Download .txt',    action: () => { downloadResponse(); setShowMore(false); } },
+                  { label: 'Share response',   action: () => { shareResponse(); setShowMore(false); } },
+                  { label: 'Report issue',     action: () => setShowMore(false) },
+                ].map(item => (
+                  <button key={item.label} onClick={item.action}
+                    className="w-full text-left px-4 py-2.5 text-[13px] text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
@@ -461,121 +529,189 @@ function MessageBubble({ msg }) {
   );
 }
 
+function ActionBtn({ children, title, onClick, active }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+      style={{
+        color: active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)',
+        background: 'transparent',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)'; }}
+    >
+      {children}
+    </button>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════════
-   7. TYPING INDICATOR
+   9. TYPING INDICATOR
 ════════════════════════════════════════════════════════════════ */
 function TypingIndicator() {
   return (
-    <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-      className="flex items-start gap-3">
-      <div className="w-8 h-8 mt-0.5 rounded-full flex items-center justify-center shrink-0"
-        style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', backdropFilter:'blur(12px)' }}>
-        <Sparkles className="w-3.5 h-3.5 text-white/60"/>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-2"
+    >
+      <div
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/35 w-fit"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <Clock className="w-3 h-3" />
+        <span style={{ fontFamily: 'Inter, sans-serif' }}>Thinking...</span>
       </div>
-      <div className="flex items-center px-5 py-3.5 rounded-2xl rounded-tl-sm"
-        style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.09)', backdropFilter:'blur(20px)' }}>
-        <AITextLoading className="text-sm tracking-wide font-normal" interval={1500} texts={[
-          "Synthesizing dual response...",
-          "Analyzing contexts...",
-          "Verifying alignment...",
+      <AITextLoading
+        className="text-[15px] text-white/50 leading-relaxed"
+        interval={1500}
+        texts={[
+          "Synthesizing response...",
+          "Analyzing context...",
           "Processing thoughts...",
-          "Almost ready..."
-        ]} />
-      </div>
+          "Almost ready...",
+        ]}
+      />
     </motion.div>
   );
 }
 
 /* ════════════════════════════════════════════════════════════════
-   8. CONVERSATION PAGE — main export
+   10. CONVERSATION PAGE — main export
 ════════════════════════════════════════════════════════════════ */
 export default function ConversationPage() {
   const navigate    = useNavigate();
   const chatEndRef  = useRef(null);
-  const [messages,  setMessages]  = useState([]);
-  const [inputVal,  setInputVal]  = useState('');
-  const [isTyping,  setIsTyping]  = useState(false);
+  const [messages,   setMessages]   = useState([]);
+  const [inputVal,   setInputVal]   = useState('');
+  const [isTyping,   setIsTyping]   = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeMode, setActiveMode] = useState('Auto');
-  const [sessionTitle, setSessionTitle] = useState('New conversation');
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const sendMessage = text => {
+  const sendMessage = async text => {
     const t = (text || inputVal).trim();
     if (!t) return;
     setInputVal('');
     setHasStarted(true);
-    if (messages.length === 0) setSessionTitle(t.slice(0, 48));
+
+    const startTime = Date.now();
 
     setMessages(prev => [...prev, {
       id: Date.now(), sender: 'user', text: t,
-      time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }]);
     setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      const response = await getSynthesizedResponse(t, messages);
+
+      const elapsed = Date.now() - startTime;
+      const minDelay = 1800;
+      if (elapsed < minDelay) {
+        await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
+      }
+
       setIsTyping(false);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'synaptica',
-        text: `Here's the synthesized analysis for: "${t.length > 60 ? t.slice(0, 60) + '…' : t}"`,
-        aiReasoning: 'Fast pattern engine: Matched across 1.4M domain vectors in 18ms. Optimal reasoning path verified with zero hallucination checksum.',
-        humanInsight: 'Contextual guardrail: Aligned with real-world human judgment, practical usability, and ethical constraints before generating this response.',
-        time: new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
+        text: response.text,
+        aiReasoning: response.aiReasoning,
+        humanInsight: response.humanInsight,
+        thinkingMs: Date.now() - startTime,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
-    }, 1800);
+    } catch (err) {
+      console.error('[MindBot] Send error:', err);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1800) await new Promise(r => setTimeout(r, 1800 - elapsed));
+      setIsTyping(false);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'synaptica',
+        text: `When choosing between Science, Commerce, or Arts, evaluate your core subject enjoyment against your long-term career goals. What subjects make you lose track of time?`,
+        aiReasoning: 'Academic Aptitude: Match subject strengths to target career entry requirements.',
+        humanInsight: 'What subject makes you genuinely curious to learn more — not just what seems safe?',
+        thinkingMs: Date.now() - startTime,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    }
+  };
+
+  // Replaces a specific AI message with a fresh Gemini response to the same prompt
+  const regenerateMessage = async (aiMsgId, userPrompt, historyBeforeMsg) => {
+    if (isTyping) return;
+
+    // Remove the old AI message and show typing indicator
+    setMessages(prev => prev.filter(m => m.id !== aiMsgId));
+    setIsTyping(true);
+
+    const startTime = Date.now();
+    try {
+      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1200) await new Promise(r => setTimeout(r, 1200 - elapsed));
+
+      setIsTyping(false);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'synaptica',
+        text: response.text,
+        aiReasoning: response.aiReasoning,
+        humanInsight: response.humanInsight,
+        thinkingMs: Date.now() - startTime,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } catch {
+      setIsTyping(false);
+    }
   };
 
   const resetSession = () => {
     setMessages([]);
     setHasStarted(false);
-    setSessionTitle('New conversation');
   };
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-black">
       <BeamBackground />
 
-      {/* ── Floating Sidebar (fixed overlay, no backing bar) ─── */}
-      <Sidebar activePage="chat" onNavigate={action => { if (action === 'new') resetSession(); }} />
+      <Sidebar onNavigate={action => { if (action === 'new') resetSession(); }} />
 
-      {/* ── Main area — full width now ───────────────────────── */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
-        {/* ════════════════════════════════════════════════════ */}
-        {/*  WELCOME SCREEN (no messages yet)                   */}
-        {/* ════════════════════════════════════════════════════ */}
+        {/* ── WELCOME SCREEN ── */}
         <AnimatePresence mode="wait">
           {!hasStarted && (
             <motion.div key="welcome"
-              initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0, y:-16 }}
-              transition={{ duration:0.35 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.35 }}
               className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
 
-              {/* Glowing Logo Mark */}
               <motion.div
-                initial={{ opacity:0, scale:0.75 }} animate={{ opacity:1, scale:1 }}
-                transition={{ delay:0.05, duration:0.55, ease:[0.16,1,0.3,1] }}
+                initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                 className="mb-7">
-                <LogoMark size={48}/>
+                <LogoMark size={48} />
               </motion.div>
 
-              {/* Heading */}
               <motion.h1
-                initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
-                transition={{ delay:0.15, duration:0.5 }}
+                initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.5 }}
                 className="text-4xl sm:text-5xl font-light text-white text-center mb-10"
-                style={{ letterSpacing:'-0.03em', lineHeight:1.1 }}>
+                style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
                 What can I help you<br/><span style={{ opacity: 0.45 }}>explore today?</span>
               </motion.h1>
 
-              {/* Input */}
               <motion.div
-                initial={{ opacity:0, y:18 }} animate={{ opacity:1, y:0 }}
-                transition={{ delay:0.22, duration:0.5 }}
+                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22, duration: 0.5 }}
                 className="w-full max-w-2xl mb-7">
                 <InputBox
                   value={inputVal} onChange={setInputVal}
@@ -587,24 +723,31 @@ export default function ConversationPage() {
           )}
         </AnimatePresence>
 
-        {/* ════════════════════════════════════════════════════ */}
-        {/*  ACTIVE CONVERSATION                                 */}
-        {/* ════════════════════════════════════════════════════ */}
+        {/* ── ACTIVE CONVERSATION ── */}
         <AnimatePresence>
           {hasStarted && (
             <motion.div key="chat"
-              initial={{ opacity:0 }} animate={{ opacity:1 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="flex-1 flex flex-col overflow-hidden">
 
-
-              {/* Scrollable message thread — with bottom padding so thread scrolls cleanly above floating input */}
-              <div className="flex-1 overflow-y-auto px-5 sm:px-10 lg:px-20 pt-8 pb-36 space-y-6">
-                {messages.map(msg => <MessageBubble key={msg.id} msg={msg}/>)}
-                {isTyping && <TypingIndicator/>}
-                <div ref={chatEndRef}/>
+              {/* Message thread */}
+              <div className="flex-1 overflow-y-auto pb-40" style={{ paddingLeft: '5rem', paddingRight: '4rem', paddingTop: '2.5rem' }}>
+                <div className="max-w-3xl mx-auto space-y-8">
+                  {messages.map((msg, idx) => {
+                    if (msg.sender === 'user') return <UserMessage key={msg.id} msg={msg} />;
+                    // Find the preceding user message for regenerate
+                    const prevUserMsg = [...messages].slice(0, idx).reverse().find(m => m.sender === 'user');
+                    const handleRegenerate = prevUserMsg
+                      ? () => regenerateMessage(msg.id, prevUserMsg.text, messages.slice(0, idx))
+                      : undefined;
+                    return <AIMessage key={msg.id} msg={msg} thinkingMs={msg.thinkingMs} onRegenerate={handleRegenerate} />;
+                  })}
+                  {isTyping && <TypingIndicator />}
+                  <div ref={chatEndRef} />
+                </div>
               </div>
 
-              {/* Floating bottom input box — centered max-w-2xl container */}
+              {/* Floating input */}
               <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-4 pb-6 pt-2 pointer-events-none z-20">
                 <div className="w-full max-w-2xl pointer-events-auto">
                   <InputBox
@@ -617,8 +760,6 @@ export default function ConversationPage() {
             </motion.div>
           )}
         </AnimatePresence>
-
-
       </main>
     </div>
   );
