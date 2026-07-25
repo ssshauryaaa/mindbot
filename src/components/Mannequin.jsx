@@ -8,7 +8,7 @@ import * as THREE from 'three';
 const SHOW_HOOD_MESH = true;
 
 // Base pose, in radians. Flip the sign to face the other way.
-const STATIC_ROTATION_Y = 0.5;
+const STATIC_ROTATION_Y = -0.5;
 
 // Idle drift — small, slow sway so the pose doesn't look frozen
 const DRIFT_SPEED = 0.18;      // sway cycle speed

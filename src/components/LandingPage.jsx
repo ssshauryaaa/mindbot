@@ -50,7 +50,7 @@ export default function LandingPage() {
         {/* x pushes it toward the right side of the frame, y pushes it
             down so only the face/upper neck stays on screen */}
         <Suspense fallback={null}>
-          <Mannequin pointer={pointer} position={[1.5, -5.5, 0]} />
+          <Mannequin pointer={pointer} position={[2, -5.65, 0]} />
         </Suspense>
 
         <ContactShadows
@@ -64,10 +64,10 @@ export default function LandingPage() {
       {/* Overlay layer sits above the canvas. pointer-events-none on the
           wrapper so it never blocks clicks reaching the 3D model behind
           it — only the button itself opts back in to being clickable. */}
-      <div className="absolute inset-0 flex items-center pointer-events-none">
+      <div className="absolute inset-0 flex items-end pb-16 md:pb-24 pointer-events-none">
         <div className="max-w-lg px-8 sm:px-12 md:px-20">
           <p className="text-xs sm:text-sm font-medium tracking-[0.25em] uppercase text-white/50 mb-5">
-            Synaptica — Duality of Mind
+            Synaptica
           </p>
           <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-semibold leading-[1.15] tracking-tight mb-6">
             Where human intelligence meets its artificial counterpart
