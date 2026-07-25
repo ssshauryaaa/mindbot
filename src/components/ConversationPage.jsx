@@ -152,11 +152,6 @@ function Sidebar({ activePage, onNavigate }) {
       onClick: () => {}
     },
     {
-      title: 'Dashboard',
-      icon: <LayoutDashboard className="h-full w-full" />,
-      onClick: () => navigate('/dashboard')
-    },
-    {
       title: 'More',
       icon: <MoreHorizontal className="h-full w-full" />,
       onClick: () => {}
