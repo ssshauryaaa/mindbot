@@ -1,24 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CustomCursor from './components/CustomCursor';
+import ConversationPage  from './components/ConversationPage';
 import AIAssistantStudio from './components/AIAssistantStudio';
-import ConversationPage from './components/ConversationPage';
+import LandingPage       from './components/LandingPage';
 
 export default function App() {
-  // 'studio'       = Behance-style AI SaaS Dashboard (metric cards, copilot panel, sidebar)
-  // 'conversation' = Dark beam AI conversation page (screenshot reference)
-  const [view, setView] = useState('conversation');
-
   return (
-    <div className="relative min-h-screen bg-void-950 text-white selection:bg-synapse-500 selection:text-white">
+    <BrowserRouter>
+      {/* Global decorative cursor */}
       <CustomCursor />
 
-      {view === 'conversation' && (
-        <ConversationPage onSwitchToStudio={() => setView('studio')} />
-      )}
+      <Routes>
+        {/* / → Welcome + Chat (Behance conversation screen) */}
+        <Route path="/"          element={<ConversationPage />} />
 
-      {view === 'studio' && (
-        <AIAssistantStudio onSwitchToConversation={() => setView('conversation')} />
-      )}
-    </div>
+        {/* /landing → Landing page with landing.png */}
+        <Route path="/landing"   element={<LandingPage />} />
+
+        {/* /dashboard → Dashboard Studio (bento cards + copilot panel) */}
+        <Route path="/dashboard" element={<AIAssistantStudio />} />
+
+        {/* Catch-all redirect */}
+        <Route path="*"          element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

@@ -5,45 +5,39 @@ export default function CustomCursor() {
   const [isVisible, setIsVisible] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const mouseX = useMotionValue(-100);
-  const mouseY = useMotionValue(-100);
+  const mouseX = useMotionValue(-200);
+  const mouseY = useMotionValue(-200);
 
-  // Smooth lerp physics for trailing glow
-  const smoothX = useSpring(mouseX, { stiffness: 250, damping: 25 });
-  const smoothY = useSpring(mouseY, { stiffness: 250, damping: 25 });
+  // Slightly lagging glow for depth
+  const glowX = useSpring(mouseX, { stiffness: 180, damping: 22 });
+  const glowY = useSpring(mouseY, { stiffness: 180, damping: 22 });
 
   useEffect(() => {
-    // Disable on touch devices or reduced motion
     const hasHover = window.matchMedia('(hover: hover)').matches;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    
-    if (!hasHover || prefersReducedMotion) {
-      return;
-    }
+    if (!hasHover || prefersReducedMotion) return;
 
     setIsVisible(true);
+    document.body.style.cursor = 'none';
 
-    const handleMouseMove = (e) => {
+    const handleMove = (e) => {
       mouseX.set(e.clientX);
       mouseY.set(e.clientY);
-
-      // Detect hover over interactive elements
-      const target = e.target;
-      const isInteractive = target.closest('a, button, input, textarea, [role="button"], .interactive');
+      const isInteractive = e.target.closest('a, button, input, textarea, select, [role="button"]');
       setIsHovered(!!isInteractive);
     };
+    const onLeave  = () => setIsVisible(false);
+    const onEnter  = () => setIsVisible(true);
 
-    const handleMouseLeave = () => setIsVisible(false);
-    const handleMouseEnter = () => setIsVisible(true);
-
-    window.addEventListener('mousemove', handleMouseMove);
-    document.body.addEventListener('mouseleave', handleMouseLeave);
-    document.body.addEventListener('mouseenter', handleMouseEnter);
+    window.addEventListener('mousemove', handleMove);
+    document.body.addEventListener('mouseleave', onLeave);
+    document.body.addEventListener('mouseenter', onEnter);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      document.body.removeEventListener('mouseleave', handleMouseLeave);
-      document.body.removeEventListener('mouseenter', handleMouseEnter);
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', handleMove);
+      document.body.removeEventListener('mouseleave', onLeave);
+      document.body.removeEventListener('mouseenter', onEnter);
     };
   }, [mouseX, mouseY]);
 
@@ -51,37 +45,37 @@ export default function CustomCursor() {
 
   return (
     <>
-      {/* Central Sharp Dot */}
+      {/* Sharp tiny white dot — precise cursor position */}
       <motion.div
-        className="fixed top-0 left-0 w-3 h-3 rounded-full bg-white pointer-events-none z-50 mix-blend-difference"
+        className="fixed top-0 left-0 pointer-events-none z-[9999]"
         style={{
-          x: mouseX,
-          y: mouseY,
-          translateX: '-50%',
-          translateY: '-50%',
+          x: mouseX, y: mouseY,
+          translateX: '-50%', translateY: '-50%',
+          width: isHovered ? 7 : 5,
+          height: isHovered ? 7 : 5,
+          borderRadius: '50%',
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          boxShadow: '0 0 6px 2px rgba(255,255,255,0.85)',
         }}
-        animate={{
-          scale: isHovered ? 1.8 : 1,
-        }}
-        transition={{ duration: 0.15 }}
+        animate={{ scale: isHovered ? 1.4 : 1 }}
+        transition={{ duration: 0.12 }}
       />
 
-      {/* Trailing Duality Glow Blob */}
+      {/* Lagging white glow aura — soft and ambient */}
       <motion.div
-        className="fixed top-0 left-0 w-12 h-12 rounded-full pointer-events-none z-40"
+        className="fixed top-0 left-0 pointer-events-none z-[9998] rounded-full"
         style={{
-          x: smoothX,
-          y: smoothY,
-          translateX: '-50%',
-          translateY: '-50%',
-          background: 'radial-gradient(circle, rgba(0,212,255,0.4) 0%, rgba(178,75,243,0.3) 50%, transparent 75%)',
-          filter: 'blur(8px)',
+          x: glowX, y: glowY,
+          translateX: '-50%', translateY: '-50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)',
+          filter: 'blur(4px)',
         }}
         animate={{
-          scale: isHovered ? 2.2 : 1,
-          opacity: isHovered ? 0.9 : 0.6,
+          width:  isHovered ? 56 : 38,
+          height: isHovered ? 56 : 38,
+          opacity: isHovered ? 1.0 : 0.70,
         }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.18 }}
       />
     </>
   );
