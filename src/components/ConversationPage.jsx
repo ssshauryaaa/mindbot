@@ -267,11 +267,11 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
       <div className="flex items-center justify-between px-4 pb-3.5 pt-1 gap-2">
         {/* Left: Mode pill */}
         <button onClick={() => onModeChange(activeMode === 'Auto' ? 'Focused' : 'Auto')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/55 hover:text-white/90 transition-colors cursor-pointer"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-          <Sparkles className="w-3.5 h-3.5 text-synapse-400" strokeWidth={1.5}/>
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
+          <Sparkles className="w-3.5 h-3.5 text-white/70" strokeWidth={1.5}/>
           <span>{activeMode}</span>
-          <ChevronDown className="w-3 h-3"/>
+          <ChevronDown className="w-3 h-3 text-white/50"/>
         </button>
 
         {/* Right: action icons with FloatingActionButton */}
@@ -312,14 +312,12 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
           <button onClick={onSend} disabled={!canSend} aria-label="Send"
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer"
             style={{
-              background: canSend
-                ? 'linear-gradient(135deg, #00c8ef 0%, #7c5cff 55%, #a855f7 100%)'
-                : 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              boxShadow: canSend ? '0 0 14px rgba(124,92,255,0.55)' : 'none',
+              background: canSend ? '#ffffff' : 'rgba(255,255,255,0.05)',
+              border: canSend ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.08)',
+              boxShadow: canSend ? '0 0 12px rgba(255,255,255,0.25)' : 'none',
               opacity: canSend ? 1 : 0.4,
             }}>
-            <MessageSquare className="w-4 h-4 text-white" strokeWidth={1.5}/>
+            <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5}/>
           </button>
         </div>
       </div>
