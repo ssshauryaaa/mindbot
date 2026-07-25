@@ -32,29 +32,29 @@ function BeamBackground() {
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1440 900"
         preserveAspectRatio="xMidYMid slice" fill="none">
         <path d="M -60 780 Q 340 500 680 300 Q 860 200 1100 80"
-          stroke="rgba(255,255,255,0.055)" strokeWidth="1.4" strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.055)" strokeWidth="1.4" strokeLinecap="round" />
         <path d="M -80 850 Q 300 560 660 340 Q 850 225 1120 95"
-          stroke="rgba(255,255,255,0.035)" strokeWidth="1.0" strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.035)" strokeWidth="1.0" strokeLinecap="round" />
         <path d="M 0 900 Q 380 620 700 400 Q 900 275 1160 120"
-          stroke="rgba(255,255,255,0.025)" strokeWidth="0.8" strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.025)" strokeWidth="0.8" strokeLinecap="round" />
         <path d="M 1440 900 C 1360 780 1320 660 1380 520 C 1410 455 1440 420 1420 340"
-          stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeLinecap="round" />
         <path d="M 1440 860 C 1350 730 1300 600 1370 470 C 1405 405 1440 375 1415 295"
-          stroke="rgba(255,255,255,0.035)" strokeWidth="0.8" strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.035)" strokeWidth="0.8" strokeLinecap="round" />
       </svg>
 
       {[
-        { x:'61%', y:'12%', s:1.8, o:0.65 },
-        { x:'72%', y:'26%', s:1.1, o:0.40 },
-        { x:'66%', y:'47%', s:1.3, o:0.28 },
-        { x:'80%', y:'18%', s:1.0, o:0.38 },
-        { x:'30%', y:'20%', s:1.0, o:0.30 },
-        { x:'22%', y:'43%', s:1.5, o:0.22 },
-        { x:'45%', y:'7%',  s:1.2, o:0.50 },
-        { x:'88%', y:'36%', s:1.4, o:0.25 },
+        { x: '61%', y: '12%', s: 1.8, o: 0.65 },
+        { x: '72%', y: '26%', s: 1.1, o: 0.40 },
+        { x: '66%', y: '47%', s: 1.3, o: 0.28 },
+        { x: '80%', y: '18%', s: 1.0, o: 0.38 },
+        { x: '30%', y: '20%', s: 1.0, o: 0.30 },
+        { x: '22%', y: '43%', s: 1.5, o: 0.22 },
+        { x: '45%', y: '7%', s: 1.2, o: 0.50 },
+        { x: '88%', y: '36%', s: 1.4, o: 0.25 },
       ].map((p, i) => (
         <div key={i} className="absolute rounded-full bg-white"
-          style={{ left:p.x, top:p.y, width:p.s, height:p.s, opacity:p.o }}/>
+          style={{ left: p.x, top: p.y, width: p.s, height: p.s, opacity: p.o }} />
       ))}
     </div>
   );
@@ -70,16 +70,16 @@ function LogoMark({ size = 48 }) {
         width: size * 1.8, height: size * 1.8,
         background: 'radial-gradient(circle, rgba(180,160,255,0.15) 0%, transparent 65%)',
         filter: 'blur(14px)',
-      }}/>
+      }} />
       <div className="absolute rounded-full animate-pulse" style={{
         width: size, height: size,
         background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 65%)',
         filter: 'blur(6px)',
-      }}/>
+      }} />
       <svg width={size} height={size} viewBox="0 0 52 52" fill="none" className="relative z-10">
-        <line x1="26" y1="9" x2="9"  y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
-        <line x1="26" y1="9" x2="43" y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
-        <line x1="17" y1="28" x2="32" y2="20" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
+        <line x1="26" y1="9" x2="9" y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="26" y1="9" x2="43" y2="36" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="17" y1="28" x2="32" y2="20" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
       </svg>
     </div>
   );
@@ -91,11 +91,11 @@ function LogoMark({ size = 48 }) {
 function Sidebar({ onNavigate }) {
   const navigate = useNavigate();
   const dockItems = [
-    { title: 'New Session',  icon: <Plus className="h-full w-full" />,          onClick: () => onNavigate('new') },
-    { title: 'History',      icon: <Bookmark className="h-full w-full" />,      onClick: () => {} },
-    { title: 'Landing Page', icon: <Compass className="h-full w-full" />,       onClick: () => navigate('/landing') },
-    { title: 'All Tools',    icon: <LayoutGrid className="h-full w-full" />,    onClick: () => {} },
-    { title: 'More',         icon: <MoreHorizontal className="h-full w-full" />, onClick: () => {} },
+    { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
+    { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => { } },
+    { title: 'Landing Page', icon: <Compass className="h-full w-full" />, onClick: () => navigate('/landing') },
+    { title: 'All Tools', icon: <LayoutGrid className="h-full w-full" />, onClick: () => { } },
+    { title: 'More', icon: <MoreHorizontal className="h-full w-full" />, onClick: () => { } },
   ];
 
   return (
@@ -505,9 +505,9 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
         <button onClick={() => onModeChange(activeMode === 'Auto' ? 'Focused' : 'Auto')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <Sparkles className="w-3.5 h-3.5 text-white/70" strokeWidth={1.5}/>
+          <Sparkles className="w-3.5 h-3.5 text-white/70" strokeWidth={1.5} />
           <span className="hidden xs:inline">{activeMode}</span>
-          <ChevronDown className="w-3 h-3 text-white/50"/>
+          <ChevronDown className="w-3 h-3 text-white/50" />
         </button>
 
         <div className="flex items-center gap-2">
@@ -534,12 +534,12 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
                 icon: <Mic className={`w-4 h-4 ${isListening ? 'text-red-400 animate-pulse' : 'text-white'}`} />,
                 onClick: handleVoiceDictation,
               },
-              {
-                id: "settings",
-                label: "Model Settings",
-                icon: <Settings2 className="w-4 h-4 text-white" />,
-                onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto"),
-              },
+              // {
+              //   id: "settings",
+              //   label: "Model Settings",
+              //   icon: <Settings2 className="w-4 h-4 text-white" />,
+              //   onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto"),
+              // },
             ]}
           />
           <button onClick={handleSend} disabled={!canSend} aria-label="Send"
@@ -550,7 +550,7 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
               boxShadow: canSend ? '0 0 12px rgba(255,255,255,0.25)' : 'none',
               opacity: canSend ? 1 : 0.4,
             }}>
-            <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5}/>
+            <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5} />
           </button>
         </div>
       </div>
@@ -658,7 +658,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
   const shareResponse = async () => {
     const shareData = { title: 'Synaptica Response', text: msg.text };
     if (navigator.share && navigator.canShare?.(shareData)) {
-      try { await navigator.share(shareData); return; } catch {}
+      try { await navigator.share(shareData); return; } catch { }
     }
     // Fallback: copy to clipboard
     await navigator.clipboard.writeText(msg.text);
@@ -731,7 +731,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
             <div className="p-3 rounded-xl text-xs"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
-                <Cpu className="w-3 h-3"/><span>AI Stream</span>
+                <Cpu className="w-3 h-3" /><span>AI Stream</span>
               </div>
               <p className="text-white/45 leading-snug">{msg.aiReasoning}</p>
             </div>
@@ -740,7 +740,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
             <div className="p-3 rounded-xl text-xs"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/35">
-                <Brain className="w-3 h-3"/><span>Human Context</span>
+                <Brain className="w-3 h-3" /><span>Human Context</span>
               </div>
               <p className="text-white/45 leading-snug">{msg.humanInsight}</p>
             </div>
@@ -790,9 +790,9 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
               >
                 {[
                   { label: 'Copy as Markdown', action: copyMarkdown },
-                  { label: 'Download .txt',    action: () => { downloadResponse(); setShowMore(false); } },
-                  { label: 'Share response',   action: () => { shareResponse(); setShowMore(false); } },
-                  { label: 'Report issue',     action: () => setShowMore(false) },
+                  { label: 'Download .txt', action: () => { downloadResponse(); setShowMore(false); } },
+                  { label: 'Share response', action: () => { shareResponse(); setShowMore(false); } },
+                  { label: 'Report issue', action: () => setShowMore(false) },
                 ].map(item => (
                   <button key={item.label} onClick={item.action}
                     className="w-full text-left px-4 py-2.5 text-[13px] text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors cursor-pointer"
@@ -863,11 +863,11 @@ function TypingIndicator() {
    10. CONVERSATION PAGE — main export
 ════════════════════════════════════════════════════════════════ */
 export default function ConversationPage() {
-  const navigate    = useNavigate();
-  const chatEndRef  = useRef(null);
-  const [messages,   setMessages]   = useState([]);
-  const [inputVal,   setInputVal]   = useState('');
-  const [isTyping,   setIsTyping]   = useState(false);
+  const navigate = useNavigate();
+  const chatEndRef = useRef(null);
+  const [messages, setMessages] = useState([]);
+  const [inputVal, setInputVal] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeMode, setActiveMode] = useState('Auto');
 
@@ -999,7 +999,7 @@ export default function ConversationPage() {
                 transition={{ delay: 0.15, duration: 0.5 }}
                 className="text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2"
                 style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-                What can I help you<br/><span style={{ opacity: 0.45 }}>explore today?</span>
+                What can I help you<br /><span style={{ opacity: 0.45 }}>explore today?</span>
               </motion.h1>
 
               <motion.div

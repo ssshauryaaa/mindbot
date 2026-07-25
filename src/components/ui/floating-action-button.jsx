@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Image, Code, FileText, Mic, Settings, Paperclip, Edit, Camera, File } from "lucide-react";
 import { cn } from "../../lib/utils";
