@@ -32,13 +32,13 @@ export function Signature({
     async function load() {
       try {
         let font;
-        const fontPaths = fontUrl 
-          ? [fontUrl] 
+        const fontPaths = fontUrl
+          ? [fontUrl]
           : [
-              "/LastoriaBoldRegular.otf",
-              "./LastoriaBoldRegular.otf",
-              "https://www.componentry.fun/LastoriaBoldRegular.otf",
-            ];
+            "/LastoriaBoldRegular.otf",
+            "./LastoriaBoldRegular.otf",
+            "https://www.componentry.fun/LastoriaBoldRegular.otf",
+          ];
 
         for (const path of fontPaths) {
           try {
@@ -85,6 +85,8 @@ export function Signature({
     visible: { pathLength: 1, opacity: 1 },
   };
 
+  const shimmerId = `shimmer-${maskId}`;
+
   return (
     <motion.svg
       key={paths.length}
@@ -125,6 +127,26 @@ export function Signature({
             />
           ))}
         </mask>
+
+        {/* Shimmer gradient — plays once on page load, sweeps left→right */}
+        <linearGradient id={shimmerId} x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+          <stop offset="0%"   stopColor="white" stopOpacity="0" />
+          <stop offset="40%"  stopColor="white" stopOpacity="0" />
+          <stop offset="50%"  stopColor="white" stopOpacity="0.9" />
+          <stop offset="60%"  stopColor="#c8b4ff" stopOpacity="0.6" />
+          <stop offset="75%"  stopColor="#64dcff" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+          <animateTransform
+            attributeName="gradientTransform"
+            type="translate"
+            from="-1.5 0"
+            to="2.5 0"
+            dur="1.6s"
+            begin="0.6s"
+            fill="freeze"
+            repeatCount="1"
+          />
+        </linearGradient>
       </defs>
 
       {paths.map((d, i) => (
@@ -154,6 +176,13 @@ export function Signature({
 
       <g mask={`url(#${maskId})`}>
         {paths.map((d, i) => <path key={`fill-${i}`} d={d} fill={color} />)}
+        {/* One-shot shimmer wipe over the filled letters */}
+        <rect
+          x={0} y={0}
+          width={width} height={height}
+          fill={`url(#${shimmerId})`}
+          style={{ mixBlendMode: 'screen', pointerEvents: 'none' }}
+        />
       </g>
     </motion.svg>
   );

@@ -7,8 +7,11 @@ import {
   ChevronDown, Lightbulb, Clapperboard, TrendingUp,
   HelpCircle, Sparkles, Brain, Cpu, User, ArrowLeft,
   Copy, Check, LayoutDashboard, Paperclip, RefreshCw,
-  Share2, ThumbsUp, ThumbsDown,
+  Share2, ThumbsUp, ThumbsDown, Code,
 } from 'lucide-react';
+import { FloatingDock } from './ui/floating-dock';
+import AITextLoading from './ui/ai-text-loading';
+import FloatingActionButton from './ui/floating-action-button';
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — Vertical beam + ambient glow + particles
@@ -16,8 +19,19 @@ import {
 function BeamBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-      {/* ── Pure black base ──────────────────────────────── */}
-      <div className="absolute inset-0" style={{ background: '#020203' }} />
+      {/* ── Video background ──────────────────────────────── */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ opacity: 0.55 }}
+      >
+        <source src="/aurora-1784998368911.webm" type="video/webm" />
+      </video>
+      {/* Dark tint — exact match with landing page */}
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)' }} />
 
       {/* ── Flowing diagonal abstract wave lines (bottom-left to upper-right) ── */}
       {/* These match the dark streaks visible across the screenshot background  */}
@@ -56,48 +70,6 @@ function BeamBackground() {
           stroke="rgba(255,255,255,0.025)" strokeWidth="0.6" strokeLinecap="round" strokeDasharray="4 8"/>
       </svg>
 
-      {/* ── Vertical light beam — crisp center column ──── */}
-      <div
-        className="absolute left-1/2 top-0 -translate-x-1/2 animate-beam-pulse"
-        style={{
-          width: 1.5,
-          height: '58%',
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.0) 0%, rgba(255,255,255,1.0) 30%, rgba(220,210,255,0.8) 60%, rgba(255,255,255,0.0) 100%)',
-        }}
-      />
-
-      {/* Bright core glow right at the beam top */}
-      <div
-        className="absolute left-1/2 top-0 -translate-x-1/2"
-        style={{
-          width: 120,
-          height: '28%',
-          background: 'radial-gradient(ellipse 40% 55% at 50% 0%, rgba(255,255,255,0.22) 0%, rgba(200,190,255,0.08) 55%, transparent 100%)',
-          filter: 'blur(18px)',
-        }}
-      />
-
-      {/* Wide ambient bloom behind beam — fills the middle zone */}
-      <div
-        className="absolute left-1/2 top-0 -translate-x-1/2"
-        style={{
-          width: 500,
-          height: '55%',
-          background: 'radial-gradient(ellipse 42% 52% at 50% 8%, rgba(200,185,255,0.11) 0%, transparent 75%)',
-          filter: 'blur(38px)',
-        }}
-      />
-
-      {/* Mid-page subtle synapse glow — where beam terminates */}
-      <div
-        className="absolute left-1/2 top-[44%] -translate-x-1/2"
-        style={{
-          width: 640,
-          height: 200,
-          background: 'radial-gradient(ellipse 50% 30% at 50% 50%, rgba(124,92,255,0.06) 0%, transparent 70%)',
-          filter: 'blur(30px)',
-        }}
-      />
 
       {/* ── Star-dust particles ──────────────────────────── */}
       {[
@@ -158,53 +130,93 @@ function LogoMark({ size = 48 }) {
 function Sidebar({ activePage, onNavigate }) {
   const navigate = useNavigate();
 
-  const items = [
-    { icon: Plus,          label: 'New Session',  action: () => onNavigate('new') },
-    { icon: Bookmark,      label: 'History',      action: () => {} },
-    { icon: Compass,       label: 'Landing Page', action: () => navigate('/landing') },
-    { icon: LayoutGrid,    label: 'All Tools',    action: () => {} },
-    { icon: LayoutDashboard, label: 'Dashboard',  action: () => navigate('/dashboard') },
-    { icon: MoreHorizontal, label: 'More',        action: () => {} },
+  const dockItems = [
+    {
+      title: 'New Session',
+      icon: <Plus className="h-full w-full" />,
+      onClick: () => onNavigate('new')
+    },
+    {
+      title: 'History',
+      icon: <Bookmark className="h-full w-full" />,
+      onClick: () => {}
+    },
+    {
+      title: 'Landing Page',
+      icon: <Compass className="h-full w-full" />,
+      onClick: () => navigate('/landing')
+    },
+    {
+      title: 'All Tools',
+      icon: <LayoutGrid className="h-full w-full" />,
+      onClick: () => {}
+    },
+    {
+      title: 'Dashboard',
+      icon: <LayoutDashboard className="h-full w-full" />,
+      onClick: () => navigate('/dashboard')
+    },
+    {
+      title: 'More',
+      icon: <MoreHorizontal className="h-full w-full" />,
+      onClick: () => {}
+    }
   ];
 
   return (
-    <aside className="relative z-20 flex flex-col items-center py-4 gap-4 shrink-0"
-      style={{
-        width: 60,
-        background: 'rgba(3,3,4,0.88)',
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-        borderRight: '1px solid rgba(255,255,255,0.05)',
-      }}>
-      {/* Brand mark top */}
-      <div className="mb-2">
-        <svg viewBox="0 0 40 40" className="w-6 h-6">
-          <line x1="8" y1="20" x2="32" y2="20" stroke="#7c5cff" strokeWidth="2.2" strokeLinecap="round"/>
-          <circle cx="8"  cy="20" r="4.5" fill="#00c8ef"/>
-          <circle cx="32" cy="20" r="4.5" fill="#a855f7"/>
-        </svg>
-      </div>
-
-      {/* Nav items */}
-      {items.map(({ icon: Icon, label, action }, i) => (
-        <button key={i} onClick={action} title={label} aria-label={label}
-          className="sidebar-icon-btn group relative">
-          <Icon className="w-[18px] h-[18px]" strokeWidth={1.6}/>
-          {/* Tooltip */}
-          <span className="absolute left-full ml-3 whitespace-nowrap text-[11px] font-medium text-white bg-void-800 border border-void-700 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
-            {label}
-          </span>
-        </button>
-      ))}
-    </aside>
+    <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
+      <FloatingDock items={dockItems} orientation="vertical" />
+    </div>
   );
 }
 
 /* ════════════════════════════════════════════════════════════════
    4. SHARED INPUT BOX
 ════════════════════════════════════════════════════════════════ */
+const PLACEHOLDER_TEXTS = [
+  "What do you want to know?",
+  "Ask me anything...",
+  "Describe a problem to solve...",
+  "Let's explore an idea together...",
+  "What's on your mind today?",
+  "Need help with something?",
+];
+
+function useTypewriter(texts, { typeSpeed = 55, deleteSpeed = 30, pauseMs = 1800 } = {}) {
+  const [displayed, setDisplayed] = useState('');
+  const [textIndex, setTextIndex] = useState(0);
+  const [phase, setPhase] = useState('typing'); // 'typing' | 'pausing' | 'deleting'
+
+  useEffect(() => {
+    const current = texts[textIndex];
+    let timeout;
+
+    if (phase === 'typing') {
+      if (displayed.length < current.length) {
+        timeout = setTimeout(() => setDisplayed(current.slice(0, displayed.length + 1)), typeSpeed);
+      } else {
+        timeout = setTimeout(() => setPhase('pausing'), pauseMs);
+      }
+    } else if (phase === 'pausing') {
+      setPhase('deleting');
+    } else if (phase === 'deleting') {
+      if (displayed.length > 0) {
+        timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), deleteSpeed);
+      } else {
+        setTextIndex((i) => (i + 1) % texts.length);
+        setPhase('typing');
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [displayed, phase, textIndex, texts, typeSpeed, deleteSpeed, pauseMs]);
+
+  return displayed;
+}
+
 function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = false }) {
   const textareaRef = useRef(null);
+  const placeholder = useTypewriter(PLACEHOLDER_TEXTS);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -217,18 +229,39 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
   const canSend = value.trim().length > 0;
 
   return (
-    <div className="glass-input rounded-2xl w-full" style={{ borderRadius: 18 }}>
-      {/* Text area */}
+    <div className="glass-input rounded-2xl w-full relative" style={{ borderRadius: 18 }}>
+      {/* Animated typewriter placeholder — only shown when input is empty */}
+      {!value && (
+        <div
+          aria-hidden="true"
+          className="absolute pointer-events-none select-none text-[15px] text-white/30 leading-relaxed"
+          style={{
+            top: large ? 20 : 14,
+            left: 20,
+            fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          {placeholder}
+          {/* Blinking cursor */}
+          <span
+            className="inline-block w-px h-[1em] bg-white/30 ml-px align-middle"
+            style={{ animation: 'blink 1s step-end infinite' }}
+          />
+        </div>
+      )}
+
+      {/* Text area — native placeholder hidden; we use the overlay above */}
       <textarea
         ref={textareaRef}
         value={value}
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-        placeholder="What do you want to know ?"
+        placeholder=""
         rows={large ? 3 : 1}
-        className="w-full bg-transparent resize-none px-5 pt-4 pb-1 text-[15px] text-white/90 placeholder-white/25 focus:outline-none leading-relaxed"
+        className="w-full bg-transparent resize-none px-5 pt-4 pb-1 text-[15px] text-white/90 focus:outline-none leading-relaxed"
         style={{ fontFamily: 'Inter, sans-serif', minHeight: large ? 72 : 44 }}
       />
+
 
       {/* Bottom control row */}
       <div className="flex items-center justify-between px-4 pb-3.5 pt-1 gap-2">
@@ -241,19 +274,39 @@ function InputBox({ value, onChange, onSend, activeMode, onModeChange, large = f
           <ChevronDown className="w-3 h-3"/>
         </button>
 
-        {/* Right: action icons */}
-        <div className="flex items-center gap-1.5">
-          {[
-            { icon: Paperclip, label: 'Attach file' },
-            { icon: Settings2, label: 'Settings' },
-            { icon: Mic,       label: 'Voice input' },
-          ].map(({ icon: Icon, label }) => (
-            <button key={label} aria-label={label}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/35 hover:text-white/75 transition-colors cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <Icon className="w-4 h-4" strokeWidth={1.5}/>
-            </button>
-          ))}
+        {/* Right: action icons with FloatingActionButton */}
+        <div className="flex items-center gap-2">
+          <FloatingActionButton
+            size="sm"
+            label="Quick Tools"
+            positionClassName="relative"
+            actions={[
+              {
+                id: "attach",
+                label: "Attach File",
+                icon: <Paperclip className="w-4 h-4 text-white" />,
+                onClick: () => onChange(value + " [Attachment] "),
+              },
+              {
+                id: "code",
+                label: "Insert Code",
+                icon: <Code className="w-4 h-4 text-white" />,
+                onClick: () => onChange(value + "\n```js\n// Code here\n```\n"),
+              },
+              {
+                id: "voice",
+                label: "Voice Dictation",
+                icon: <Mic className="w-4 h-4 text-white" />,
+                onClick: () => onSend("Voice dictation input"),
+              },
+              {
+                id: "settings",
+                label: "Model Parameters",
+                icon: <Settings2 className="w-4 h-4 text-white" />,
+                onClick: () => onModeChange(activeMode === "Auto" ? "Focused" : "Auto"),
+              },
+            ]}
+          />
 
           {/* Send */}
           <button onClick={onSend} disabled={!canSend} aria-label="Send"
@@ -321,33 +374,47 @@ function MessageBubble({ msg }) {
   if (msg.sender === 'user') {
     return (
       <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
-        className="flex justify-end items-end gap-2.5">
-        <div className="max-w-lg px-5 py-3.5 rounded-2xl rounded-br-sm text-sm text-white/90 leading-relaxed"
-          style={{ background:'rgba(35,38,62,0.75)', border:'1px solid rgba(255,255,255,0.09)' }}>
+        className="flex justify-end items-end gap-3">
+        <div
+          className="max-w-lg px-5 py-3.5 rounded-2xl rounded-br-sm text-sm text-white/90 leading-relaxed"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+          }}
+        >
           {msg.text}
-          <div className="text-[10px] font-mono text-white/30 text-right mt-1.5">{msg.time}</div>
+          <div className="text-[10px] font-mono text-white/25 text-right mt-1.5">{msg.time}</div>
         </div>
-        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-          style={{ background:'linear-gradient(135deg,#a855f7,#7c5cff)', boxShadow:'0 0 12px rgba(168,85,247,0.4)' }}>
-          <User className="w-3.5 h-3.5 text-white"/>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.14)', backdropFilter:'blur(12px)' }}>
+          <User className="w-4 h-4 text-white/70"/>
         </div>
       </motion.div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}
-      className="flex justify-start items-start gap-2.5">
+    <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}
+      className="flex justify-start items-start gap-3">
       {/* Avatar */}
-      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1"
-        style={{ background:'rgba(124,92,255,0.2)', border:'1px solid rgba(124,92,255,0.4)', boxShadow:'0 0 12px rgba(124,92,255,0.3)' }}>
-        <Sparkles className="w-3.5 h-3.5 text-synapse-400"/>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+        style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', backdropFilter:'blur(12px)' }}>
+        <Sparkles className="w-3.5 h-3.5 text-white/60"/>
       </div>
 
       {/* Bubble */}
       <div className="max-w-2xl space-y-3 min-w-0">
-        <div className="px-5 py-4 rounded-2xl rounded-tl-sm text-sm text-white/88 leading-relaxed"
-          style={{ background:'rgba(14,16,26,0.8)', border:'1px solid rgba(255,255,255,0.08)' }}>
+        <div
+          className="px-5 py-4 rounded-2xl rounded-tl-sm text-sm text-white/88 leading-relaxed"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
           <p>{msg.text}</p>
 
           {/* Dual-stream insight cards */}
@@ -355,20 +422,20 @@ function MessageBubble({ msg }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
               {msg.aiReasoning && (
                 <div className="p-3 rounded-xl text-xs"
-                  style={{ background:'rgba(0,200,239,0.07)', border:'1px solid rgba(0,200,239,0.22)' }}>
-                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-ai-400">
+                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/50">
                     <Cpu className="w-3 h-3"/><span>AI Compute Stream</span>
                   </div>
-                  <p className="text-white/65 leading-snug">{msg.aiReasoning}</p>
+                  <p className="text-white/55 leading-snug">{msg.aiReasoning}</p>
                 </div>
               )}
               {msg.humanInsight && (
                 <div className="p-3 rounded-xl text-xs"
-                  style={{ background:'rgba(168,85,247,0.07)', border:'1px solid rgba(168,85,247,0.22)' }}>
-                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-human-400">
+                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/50">
                     <Brain className="w-3 h-3"/><span>Human Context</span>
                   </div>
-                  <p className="text-white/65 leading-snug">{msg.humanInsight}</p>
+                  <p className="text-white/55 leading-snug">{msg.humanInsight}</p>
                 </div>
               )}
             </div>
@@ -377,21 +444,21 @@ function MessageBubble({ msg }) {
 
         {/* Action row */}
         <div className="flex items-center gap-2 pl-1">
-          <span className="text-[10px] font-mono text-white/25">{msg.time} · Verified</span>
+          <span className="text-[10px] font-mono text-white/20">{msg.time} · Verified</span>
           <div className="flex items-center gap-1.5 ml-2">
             <button onClick={copyText} title="Copy response"
-              className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/70 transition-colors cursor-pointer">
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400"/> : <Copy className="w-3.5 h-3.5"/>}
+              className="flex items-center gap-1 text-[11px] text-white/25 hover:text-white/60 transition-colors cursor-pointer">
+              {copied ? <Check className="w-3.5 h-3.5 text-white/60"/> : <Copy className="w-3.5 h-3.5"/>}
             </button>
             <button onClick={() => setLiked('up')} title="Good response"
-              className={`text-[11px] hover:text-white/70 transition-colors cursor-pointer ${liked==='up' ? 'text-emerald-400' : 'text-white/30'}`}>
+              className={`text-[11px] hover:text-white/60 transition-colors cursor-pointer ${liked==='up' ? 'text-white/80' : 'text-white/25'}`}>
               <ThumbsUp className="w-3.5 h-3.5"/>
             </button>
             <button onClick={() => setLiked('down')} title="Bad response"
-              className={`text-[11px] hover:text-white/70 transition-colors cursor-pointer ${liked==='down' ? 'text-rose-400' : 'text-white/30'}`}>
+              className={`text-[11px] hover:text-white/60 transition-colors cursor-pointer ${liked==='down' ? 'text-white/80' : 'text-white/25'}`}>
               <ThumbsDown className="w-3.5 h-3.5"/>
             </button>
-            <button title="Regenerate" className="text-white/30 hover:text-white/70 transition-colors cursor-pointer">
+            <button title="Regenerate" className="text-white/25 hover:text-white/60 transition-colors cursor-pointer">
               <RefreshCw className="w-3.5 h-3.5"/>
             </button>
           </div>
@@ -407,19 +474,20 @@ function MessageBubble({ msg }) {
 function TypingIndicator() {
   return (
     <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-      className="flex items-center gap-2.5">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-        style={{ background:'rgba(124,92,255,0.2)', border:'1px solid rgba(124,92,255,0.35)' }}>
-        <Sparkles className="w-3.5 h-3.5 text-synapse-400"/>
+      className="flex items-start gap-3">
+      <div className="w-8 h-8 mt-0.5 rounded-full flex items-center justify-center shrink-0"
+        style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', backdropFilter:'blur(12px)' }}>
+        <Sparkles className="w-3.5 h-3.5 text-white/60"/>
       </div>
-      <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
-        style={{ background:'rgba(14,16,26,0.75)', border:'1px solid rgba(255,255,255,0.07)' }}>
-        <span className="text-xs font-mono text-white/40">Synthesizing dual response</span>
-        <div className="flex items-center gap-1 ml-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-ai-400 inline-block typing-dot-1"/>
-          <span className="w-1.5 h-1.5 rounded-full bg-synapse-400 inline-block typing-dot-2"/>
-          <span className="w-1.5 h-1.5 rounded-full bg-human-400 inline-block typing-dot-3"/>
-        </div>
+      <div className="flex items-center px-5 py-3.5 rounded-2xl rounded-tl-sm"
+        style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.09)', backdropFilter:'blur(20px)' }}>
+        <AITextLoading className="text-sm tracking-wide font-normal" interval={1500} texts={[
+          "Synthesizing dual response...",
+          "Analyzing contexts...",
+          "Verifying alignment...",
+          "Processing thoughts...",
+          "Almost ready..."
+        ]} />
       </div>
     </motion.div>
   );
@@ -475,13 +543,13 @@ export default function ConversationPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden" style={{ background:'var(--void-1000)' }}>
+    <div className="relative flex h-screen w-screen overflow-hidden bg-black">
       <BeamBackground />
 
-      {/* ── Sidebar ──────────────────────────────────────────── */}
+      {/* ── Floating Sidebar (fixed overlay, no backing bar) ─── */}
       <Sidebar activePage="chat" onNavigate={action => { if (action === 'new') resetSession(); }} />
 
-      {/* ── Main area ────────────────────────────────────────── */}
+      {/* ── Main area — full width now ───────────────────────── */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
         {/* ════════════════════════════════════════════════════ */}
@@ -506,9 +574,9 @@ export default function ConversationPage() {
               <motion.h1
                 initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay:0.15, duration:0.5 }}
-                className="text-4xl sm:text-5xl font-normal text-white text-center mb-10"
+                className="text-4xl sm:text-5xl font-light text-white text-center mb-10"
                 style={{ letterSpacing:'-0.03em', lineHeight:1.1 }}>
-                How can i help&nbsp;<span className="text-gradient-duality">you today?</span>
+                What can I help you<br/><span style={{ opacity: 0.45 }}>explore today?</span>
               </motion.h1>
 
               {/* Input */}
@@ -521,13 +589,6 @@ export default function ConversationPage() {
                   onSend={sendMessage} large
                   activeMode={activeMode} onModeChange={setActiveMode}
                 />
-              </motion.div>
-
-              {/* Suggestion chips */}
-              <motion.div
-                initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
-                transition={{ delay:0.32, duration:0.5 }}>
-                <SuggestionChips onSelect={sendMessage}/>
               </motion.div>
             </motion.div>
           )}
@@ -542,64 +603,28 @@ export default function ConversationPage() {
               initial={{ opacity:0 }} animate={{ opacity:1 }}
               className="flex-1 flex flex-col overflow-hidden">
 
-              {/* Top session bar */}
-              <div className="shrink-0 flex items-center justify-between px-5 py-3"
-                style={{ borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(8,9,15,0.55)', backdropFilter:'blur(20px)' }}>
-                <div className="flex items-center gap-2.5">
-                  <button onClick={resetSession}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white/35 hover:text-white hover:bg-white/7 transition-all cursor-pointer">
-                    <ArrowLeft className="w-4 h-4"/>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background:'rgba(124,92,255,0.2)', border:'1px solid rgba(124,92,255,0.4)' }}>
-                      <Sparkles className="w-3 h-3 text-synapse-400"/>
-                    </div>
-                    <span className="text-sm text-white/75 font-medium truncate max-w-sm">{sessionTitle}</span>
-                    <span className="text-[10px] font-mono text-emerald-400 px-2 py-0.5 rounded-full shrink-0"
-                      style={{ background:'rgba(16,185,129,0.1)', border:'1px solid rgba(16,185,129,0.2)' }}>
-                      Active
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => navigate('/dashboard')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-white/45 hover:text-white transition-colors cursor-pointer"
-                    style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                    <LayoutDashboard className="w-3.5 h-3.5 text-ai-400"/>
-                    <span>Dashboard</span>
-                  </button>
-                  <button onClick={resetSession}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-white/45 hover:text-white transition-colors cursor-pointer"
-                    style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                    <Plus className="w-3.5 h-3.5"/>
-                    <span>New session</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Scrollable message thread */}
-              <div className="flex-1 overflow-y-auto px-5 sm:px-10 lg:px-20 py-8 space-y-6">
+              {/* Scrollable message thread — with bottom padding so thread scrolls cleanly above floating input */}
+              <div className="flex-1 overflow-y-auto px-5 sm:px-10 lg:px-20 pt-8 pb-36 space-y-6">
                 {messages.map(msg => <MessageBubble key={msg.id} msg={msg}/>)}
                 {isTyping && <TypingIndicator/>}
                 <div ref={chatEndRef}/>
               </div>
 
-              {/* Sticky bottom input */}
-              <div className="shrink-0 px-5 sm:px-10 lg:px-20 py-4"
-                style={{ background:'rgba(8,9,15,0.75)', backdropFilter:'blur(24px)', borderTop:'1px solid rgba(255,255,255,0.05)' }}>
-                <InputBox
-                  value={inputVal} onChange={setInputVal}
-                  onSend={sendMessage}
-                  activeMode={activeMode} onModeChange={setActiveMode}
-                />
-                <div className="mt-3">
-                  <SuggestionChips onSelect={sendMessage} compact/>
+              {/* Floating bottom input box — centered max-w-2xl container */}
+              <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-4 pb-6 pt-2 pointer-events-none z-20">
+                <div className="w-full max-w-2xl pointer-events-auto">
+                  <InputBox
+                    value={inputVal} onChange={setInputVal}
+                    onSend={sendMessage}
+                    activeMode={activeMode} onModeChange={setActiveMode}
+                  />
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
 
       </main>
     </div>

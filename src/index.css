@@ -207,8 +207,7 @@ h1,h2,h3,h4,h5,h6 {
 }
 
 .glass-input:focus-within {
-  border-color: rgba(124,92,255,0.55);
-  box-shadow: 0 0 0 3px rgba(124,92,255,0.12);
+  border-color: rgba(255,255,255,0.18);
 }
 
 /* ─── Gradient Utilities ─────────────────────────────────────── */
@@ -277,11 +276,15 @@ h1,h2,h3,h4,h5,h6 {
 
 /* ─── Focus & Selection ──────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--synapse-500);
-  outline-offset: 2px;
-  border-radius: 6px;
+  outline: none;
 }
 ::selection { background: rgba(124,92,255,0.35); color: #fff; }
 
 /* ─── Tabular nums helper ────────────────────────────────────── */
 .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* ─── Typewriter cursor blink ────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

@@ -3,36 +3,29 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Toggle off if the "Hood" mesh turns out to be an unwanted leftover
-// piece from the source rig.
 const SHOW_HOOD_MESH = true;
-
-// Base pose, in radians. Flip the sign to face the other way.
 const STATIC_ROTATION_Y = -0.5;
+const DRIFT_SPEED = 0.18;
+const DRIFT_AMOUNT = 0.035;
+const CURSOR_MAX_Y = 0.12;
+const CURSOR_MAX_X = 0.05;
+const CURSOR_INFLUENCE_EASE = 0.06;
+const BURST_DURATION = 0.9;
+const BURST_SPIN = -0.5;
+const BURST_SCALE = 0.05;
+const BURST_GLOW = 2.2;
 
-// Idle drift — small, slow sway so the pose doesn't look frozen
-const DRIFT_SPEED = 0.18;      // sway cycle speed
-const DRIFT_AMOUNT = 0.035;    // sway distance, in radians
+// Lerp helper
+function lerp(a, b, t) { return a + (b - a) * t; }
 
-// Cursor follow — only active in the TOP HALF of the screen, and kept
-// small on purpose: too much rotation and the crop starts cutting the
-// model off. Fades in/out smoothly at the midline instead of snapping.
-const CURSOR_MAX_Y = 0.12;         // max left/right lean, in radians
-const CURSOR_MAX_X = 0.05;         // max up/down tilt, in radians
-const CURSOR_INFLUENCE_EASE = 0.06; // how fast the fade catches up
-
-// Click burst — a single smooth swing out and back, synced with a glow
-const BURST_DURATION = 0.9;    // seconds for the full rise-and-fall
-const BURST_SPIN = -0.5;       // negative = swings left; flip the sign
-// if this goes the wrong way for you
-const BURST_SCALE = 0.05;      // how much it puffs up at the peak
-const BURST_GLOW = 2.2;        // peak flash brightness
-
-export default function Mannequin({ pointer, ...props }) {
+export default function Mannequin({ pointer, isAnimating = false, onAnimationComplete, ...props }) {
     const outerGroup = useRef();
     const innerGroup = useRef();
-    const burstProgress = useRef(1); // 0 = just clicked, 1 = settled
-    const cursorInfluence = useRef(0); // 0 = no effect, 1 = full effect
+    const burstProgress = useRef(1);
+    const cursorInfluence = useRef(0);
+    // Tracks the prop position for smooth lerping
+    const currentPos = useRef({ x: props.position?.[0] ?? 2, y: props.position?.[1] ?? -5.65, z: 0 });
+    const animProgress = useRef(0); // 0 = start of exit anim, 1 = done
 
     const { scene } = useGLTF('/model.glb');
     const materials = useRef([]);
@@ -77,26 +70,61 @@ export default function Mannequin({ pointer, ...props }) {
 
     const handleClick = useCallback((e) => {
         e.stopPropagation();
-        burstProgress.current = 0; // restart the swing from the beginning
+        burstProgress.current = 0;
     }, []);
 
     const handlePointerOver = useCallback(() => {
-        document.body.style.cursor = 'pointer';
+        document.body.style.cursor = 'none';
     }, []);
     const handlePointerOut = useCallback(() => {
-        document.body.style.cursor = 'auto';
+        document.body.style.cursor = 'none';
     }, []);
 
     useFrame((state, delta) => {
         const t = state.clock.elapsedTime;
 
+        if (isAnimating) {
+            // Ease animProgress toward 1
+            animProgress.current = Math.min(animProgress.current + delta * 0.85, 1);
+            const ease = 1 - Math.pow(1 - animProgress.current, 3); // cubic ease-out
+
+            // Target: center screen, model rises up to show torso
+            const targetX = 0;
+            const targetY = -3.2;
+
+            currentPos.current.x = lerp(currentPos.current.x, targetX, 0.045);
+            currentPos.current.y = lerp(currentPos.current.y, targetY, 0.045);
+
+            if (outerGroup.current) {
+                outerGroup.current.position.x = currentPos.current.x;
+                outerGroup.current.position.y = currentPos.current.y;
+                // Face forward smoothly
+                outerGroup.current.rotation.y = lerp(outerGroup.current.rotation.y, 0, 0.06);
+                outerGroup.current.rotation.x = lerp(outerGroup.current.rotation.x, 0, 0.06);
+                // Scale up slightly
+                const targetScale = 1 + ease * 0.22;
+                outerGroup.current.scale.setScalar(lerp(outerGroup.current.scale.x, targetScale, 0.06));
+            }
+
+            // Emissive glow builds up as model centers
+            if (materials.current.length) {
+                const glow = ease * 3.5;
+                materials.current.forEach((m) => { m.emissiveIntensity = glow; });
+            }
+
+            // Call completion callback when fully animated
+            if (animProgress.current >= 1 && onAnimationComplete) {
+                onAnimationComplete();
+            }
+            return; // skip normal idle when animating
+        }
+
+        // — Normal idle behaviour —
+        animProgress.current = 0; // reset in case state flips back
+
         const driftY = Math.sin(t * DRIFT_SPEED) * DRIFT_AMOUNT;
         const driftX = Math.sin(t * DRIFT_SPEED * 0.7) * DRIFT_AMOUNT * 0.4;
 
-        // Only lean toward the cursor when it's in the top half of the
-        // screen (y < 0 in this coordinate system). Ease the influence
-        // toward its target each frame so crossing the midline fades
-        // in/out smoothly instead of the model snapping on contact.
         const p = pointer?.current ?? { x: 0, y: 0 };
         const targetInfluence = p.y < 0 ? 1 : 0;
         cursorInfluence.current +=
@@ -105,14 +133,7 @@ export default function Mannequin({ pointer, ...props }) {
         const cursorY = p.x * CURSOR_MAX_Y * cursorInfluence.current;
         const cursorX = -p.y * CURSOR_MAX_X * cursorInfluence.current;
 
-        // Ease-in/ease-out envelope: zero slope at both the start and the
-        // end, so it ramps up and down gradually instead of jumping —
-        // a plain sine curve rises too fast right after the click and
-        // reads as a pop rather than a fade.
-        burstProgress.current = Math.min(
-            burstProgress.current + delta / BURST_DURATION,
-            1
-        );
+        burstProgress.current = Math.min(burstProgress.current + delta / BURST_DURATION, 1);
         const envelope = (1 - Math.cos(Math.PI * 2 * burstProgress.current)) / 2;
 
         if (outerGroup.current) {
@@ -120,13 +141,14 @@ export default function Mannequin({ pointer, ...props }) {
                 STATIC_ROTATION_Y + driftY + cursorY + envelope * BURST_SPIN;
             outerGroup.current.rotation.x = driftX + cursorX;
             outerGroup.current.scale.setScalar(1 + envelope * BURST_SCALE);
+            // Track current pos for when animation starts
+            currentPos.current.x = props.position?.[0] ?? 2;
+            currentPos.current.y = props.position?.[1] ?? -5.65;
         }
 
         if (materials.current.length) {
             const glow = envelope * BURST_GLOW;
-            materials.current.forEach((m) => {
-                m.emissiveIntensity = glow;
-            });
+            materials.current.forEach((m) => { m.emissiveIntensity = glow; });
         }
     });
 
