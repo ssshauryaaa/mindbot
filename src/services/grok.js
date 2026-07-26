@@ -31,15 +31,16 @@ Absolute rules:
 - Maintain consistency with past conversation context.`;
 
 /**
- * Synthesizes a response using Grok AI (xAI API) with Duality mode support.
+ * Synthesizes a response using Grok Cloud API with Duality mode support.
  *
  * @param {string} userPrompt - The user's message
  * @param {Array} history - Prior conversation messages [{sender, text}]
  * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy' | 'Logic' | 'Duality' | 'Empathy'
  * @param {string} model - 'grok-beta'
+ * @param {number} [customRatio=50] - User-configured logic percentage ratio (0-100)
  * @returns {Promise<{ text: string, aiReasoning: string, humanInsight: string, logicRatio: number, empathyRatio: number, modeName: string }>}
  */
-export async function getGrokSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = 'grok-beta') {
+export async function getGrokSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = 'grok-beta', customRatio = 50) {
   if (!API_KEY || API_KEY.length < 8) {
     throw new Error('API key not configured — please add VITE_GROK_API_KEY to your .env file and restart the dev server.');
   }
@@ -52,7 +53,7 @@ export async function getGrokSynthesizedResponse(userPrompt, history = [], activ
     } else if (activeMode.includes('Empathy')) {
       modeInstruction = "\nCURRENT MODE: EMPATHY. Maximize emotional intelligence, personal growth, real-world context, and empathetic encouragement. Set empathyRatio around 85-95 and logicRatio around 5-15.";
     } else {
-      modeInstruction = "\nCURRENT MODE: DUALITY. Balance AI logic and human empathy equally 50/50. Set logicRatio around 50 and empathyRatio around 50.";
+      modeInstruction = `\nCURRENT MODE: DUALITY. User-configured target ratio: ${customRatio}% Machine Logic and ${100 - customRatio}% Human Empathy. Balance your explanation according to this target. Set logicRatio around ${customRatio} and empathyRatio around ${100 - customRatio}.`;
     }
 
     const messages = [

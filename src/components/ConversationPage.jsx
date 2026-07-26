@@ -18,6 +18,8 @@ import { getSynthesizedResponse } from '../services/aiProvider';
 import PremiumDualityMeter from "./DualityMeter";
 import UserMessage from "./UserMessage";
 import HistoryDrawer from "./HistoryDrawer";
+import DualitySlider from "./DualitySlider";
+import SuggestionChips from "./SuggestionChips";
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -270,35 +272,127 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function ModelSelector({ activeProvider, onProviderChange, isDropUp = false }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const providers = [
+    {
+      id: 'gemini',
+      title: 'Gemini 2.0 Flash',
+      desc: 'Fast, high precision multimodal intelligence',
+      icon: <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />,
+    },
+    {
+      id: 'groq',
+      title: 'Groq (Llama 3.3 70B)',
+      desc: 'Ultra-fast synthesis powered by Groq Llama 3.3',
+      icon: <Zap className="w-4 h-4 text-orange-400 shrink-0" />,
+    },
+    {
+      id: 'openrouter',
+      title: 'OpenRouter (Gemma 4 31B)',
+      desc: 'Google Gemma 4 31B & 200+ models via OpenRouter',
+      icon: <Globe className="w-4 h-4 text-emerald-400 shrink-0" />,
+    },
+  ];
+
+  const current = providers.find(p => p.id === activeProvider) || providers[0];
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
+        style={{
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: open ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
+          backdropFilter: 'blur(12px)',
+        }}
+        title="Select AI Engine"
+      >
+        {current.icon}
+        <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
+          {current.title}
+        </span>
+        <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: isDropUp ? 8 : -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isDropUp ? 6 : -6, scale: 0.95 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
+            style={{
+              background: 'rgba(5, 5, 8, 0.96)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+            }}
+          >
+            {providers.map(item => {
+              const isActive = activeProvider === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onProviderChange?.(item.id);
+                    setOpen(false);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 transition-all cursor-pointer group relative mb-0.5"
+                  style={{
+                    background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+                    border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
+                  }}
+                >
+                  <div className="mt-0.5">{item.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        {item.title}
+                      </span>
+                      {isActive && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {item.desc}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, activeProvider = 'gemini', onProviderChange, dropUp }) {
   const [attachments, setAttachments] = useState([]);
   const [isListening, setIsListening] = useState(false);
-  const [showModeDropdown, setShowModeDropdown] = useState(false);
-  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [justSent, setJustSent] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
-  const modeDropdownRef = useRef(null);
-  const providerDropdownRef = useRef(null);
 
   // If dropUp is specified use it, otherwise open downward when large (welcome screen) and upward when small (active chat)
   const isDropUp = dropUp !== undefined ? dropUp : !large;
-
-  // Close mode and provider dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target)) {
-        setShowModeDropdown(false);
-      }
-      if (providerDropdownRef.current && !providerDropdownRef.current.contains(e.target)) {
-        setShowProviderDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
 
   useEffect(() => {
@@ -642,222 +736,7 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 pb-3.5 pt-1 gap-2">
         <div className="flex items-center gap-2">
-          {/* AI Engine Provider Selector Dropdown */}
-          <div className="relative" ref={providerDropdownRef}>
-            <button
-              onClick={() => {
-                setShowProviderDropdown(v => !v);
-                setShowModeDropdown(false);
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
-              style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: showProviderDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
-                backdropFilter: 'blur(12px)',
-              }}
-              title="Select AI Engine"
-            >
-              {activeProvider === 'openrouter' ? <Globe className="w-3.5 h-3.5 text-emerald-400" /> : activeProvider === 'groq' ? <Zap className="w-3.5 h-3.5 text-orange-400" /> : <Sparkles className="w-3.5 h-3.5 text-sky-400" />}
-
-              <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
-                {activeProvider === 'openrouter' ? 'OpenRouter' : activeProvider === 'groq' ? 'Groq (Llama 3.3)' : 'Gemini 2.0'}
-              </span>
-
-              <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showProviderDropdown ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Provider Dropdown Menu */}
-            <AnimatePresence>
-              {showProviderDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: isDropUp ? 8 : -8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: isDropUp ? 6 : -6, scale: 0.95 }}
-                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                  className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
-                  style={{
-                    background: 'rgba(5, 5, 8, 0.96)',
-                    border: '1px solid rgba(255, 255, 255, 0.16)',
-                    backdropFilter: 'blur(24px)',
-                    WebkitBackdropFilter: 'blur(24px)',
-                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  {[
-                    {
-                      id: 'gemini',
-                      title: 'Gemini 2.0 Flash',
-                      desc: 'Fast, high precision multimodal intelligence',
-                      icon: <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />,
-                    },
-                    {
-                      id: 'groq',
-                      title: 'Groq (Llama 3.3 70B)',
-                      desc: 'Ultra-fast synthesis powered by Groq Llama 3.3',
-                      icon: <Zap className="w-4 h-4 text-orange-400 shrink-0" />,
-                    },
-                    {
-                      id: 'openrouter',
-                      title: 'OpenRouter (Gemma 4 31B)',
-                      desc: 'Google Gemma 4 31B & 200+ models via OpenRouter',
-                      icon: <Globe className="w-4 h-4 text-emerald-400 shrink-0" />,
-                    },
-                  ].map(item => {
-                    const isActive = activeProvider === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          if (onProviderChange) onProviderChange(item.id);
-                          setShowProviderDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 transition-all cursor-pointer group relative mb-0.5"
-                        style={{
-                          background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
-                          border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
-                        }}
-                        onMouseEnter={e => {
-                          if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                        }}
-                        onMouseLeave={e => {
-                          if (!isActive) e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        <div className="mt-0.5">{item.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                              {item.title}
-                            </span>
-                            {isActive && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
-                            )}
-                          </div>
-                          <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            {item.desc}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Duality Mode Selector Dropdown — Animated Glass */}
-          <div className="relative" ref={modeDropdownRef}>
-            <motion.button
-              onClick={() => {
-                setShowModeDropdown(v => !v);
-                setShowProviderDropdown(false);
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
-              style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: showModeDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
-                backdropFilter: 'blur(12px)',
-              }}
-              title="Choose Duality Mode"
-            >
-              {activeMode === 'Logic' && <Cpu className="w-3.5 h-3.5 text-white/90" />}
-              {activeMode === 'Duality' && <Sparkles className="w-3.5 h-3.5 text-white/90" />}
-              {activeMode === 'Empathy' && <Brain className="w-3.5 h-3.5 text-white/90" />}
-              <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
-                {activeMode}
-              </span>
-              <motion.span
-                animate={{ rotate: showModeDropdown ? 180 : 0 }}
-                transition={{ duration: 0.4, ease: 'easeInOut', type: 'spring' }}
-              >
-                <ChevronDown className="w-3 h-3 text-white/50" />
-              </motion.span>
-            </motion.button>
-
-            {/* Animated Mode Dropdown Menu */}
-            <AnimatePresence>
-              {showModeDropdown && (
-                <motion.div
-                  initial={{ y: isDropUp ? 6 : -6, scale: 0.95, opacity: 0, filter: 'blur(8px)' }}
-                  animate={{ y: 0, scale: 1, opacity: 1, filter: 'blur(0px)' }}
-                  exit={{ y: isDropUp ? 4 : -4, scale: 0.95, opacity: 0, filter: 'blur(8px)' }}
-                  transition={{ duration: 0.5, ease: 'circInOut', type: 'spring' }}
-                  className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
-                  style={{
-                    background: 'rgba(5, 5, 8, 0.96)',
-                    border: '1px solid rgba(255, 255, 255, 0.16)',
-                    backdropFilter: 'blur(24px)',
-                    WebkitBackdropFilter: 'blur(24px)',
-                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  {[
-                    {
-                      id: 'Logic',
-                      title: 'Logic',
-                      desc: 'Analytical data, code, facts & formulas',
-                      icon: <Cpu className="w-4 h-4 text-white/90 shrink-0" />,
-                    },
-                    {
-                      id: 'Duality',
-                      title: 'Duality',
-                      desc: '50/50 Machine logic & Human empathy',
-                      icon: <Sparkles className="w-4 h-4 text-white/90 shrink-0" />,
-                    },
-                    {
-                      id: 'Empathy',
-                      title: 'Empathy',
-                      desc: 'Emotional intelligence & context',
-                      icon: <Brain className="w-4 h-4 text-white/90 shrink-0" />,
-                    },
-                  ].map((item, index) => {
-                    const isActive = activeMode === item.id;
-                    return (
-                      <motion.button
-                        key={item.id}
-                        initial={{ opacity: 0, x: 10, scale: 0.95, filter: 'blur(8px)' }}
-                        animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, x: 8, scale: 0.95, filter: 'blur(8px)' }}
-                        transition={{ duration: 0.35, delay: index * 0.07, ease: 'easeOut', type: 'spring' }}
-                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => {
-                          onModeChange(item.id);
-                          setShowModeDropdown(false);
-                        }}
-                        className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 cursor-pointer group relative mb-0.5"
-                        style={{
-                          background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
-                          border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
-                        }}
-                      >
-                        <div className="mt-0.5">{item.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                              {item.title}
-                            </span>
-                            {isActive && (
-                              <motion.div
-                                layoutId="mode-active-dot"
-                                className="w-1.5 h-1.5 rounded-full bg-white"
-                                style={{ boxShadow: '0 0 8px #ffffff' }}
-                              />
-                            )}
-                          </div>
-                          <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            {item.desc}
-                          </p>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Left action area — clean & minimal */}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1166,6 +1045,7 @@ export default function ConversationPage() {
   const [transitioning, setTransitioning] = useState(false); // true while welcome→chat morph plays
   const [activeMode, setActiveMode] = useState('Duality');
   const [activeProvider, setActiveProvider] = useState('gemini');
+  const [dualityRatio, setDualityRatio] = useState(50); // 0-100, logic%
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
 
   // Persistent session storage
@@ -1293,7 +1173,7 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider);
+      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider, undefined, dualityRatio);
 
       const elapsed = Date.now() - startTime;
       const minDelay = 1800;
@@ -1352,7 +1232,7 @@ export default function ConversationPage() {
 
     const startTime = Date.now();
     try {
-      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg, activeMode, activeProvider);
+      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg, activeMode, activeProvider, undefined, dualityRatio);
       const elapsed = Date.now() - startTime;
       if (elapsed < 1200) await new Promise(r => setTimeout(r, 1200 - elapsed));
 
@@ -1397,9 +1277,10 @@ export default function ConversationPage() {
     }
     .cp-exit-logo  { animation: cp-blur-up 0.38s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0s; }
     .cp-exit-title { animation: cp-blur-up 0.38s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.06s; }
-    .cp-exit-input { animation: cp-blur-up 0.32s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.12s; }
+    .cp-exit-input  { animation: cp-blur-up 0.32s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.12s; }
+    .cp-exit-extras { animation: cp-blur-up 0.28s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.16s; }
     @media (prefers-reduced-motion: reduce) {
-      .cp-exit-logo, .cp-exit-title, .cp-exit-input { animation: none; opacity: 0; }
+      .cp-exit-logo, .cp-exit-title, .cp-exit-input, .cp-exit-extras { animation: none; opacity: 0; }
     }
   `;
 
@@ -1458,7 +1339,7 @@ export default function ConversationPage() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.22, duration: 0.5 }}
-              className={`w-full max-w-2xl mb-7 px-1 sm:px-0 ${transitioning ? 'cp-exit-input' : ''}`}
+              className={`w-full max-w-2xl mb-5 px-1 sm:px-0 ${transitioning ? 'cp-exit-input' : ''}`}
             >
               <InputBox
                 value={inputVal} onChange={setInputVal}
@@ -1466,6 +1347,59 @@ export default function ConversationPage() {
                 activeMode={activeMode} onModeChange={setActiveMode}
                 activeProvider={activeProvider} onProviderChange={setActiveProvider}
               />
+            </motion.div>
+
+            {/* Duality Slider + Suggestion Chips */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.32, duration: 0.5 }}
+              className={`w-full max-w-2xl space-y-5 px-1 sm:px-0 ${transitioning ? 'cp-exit-extras' : ''}`}
+            >
+              {/* Duality ratio slider container with Model Selector above it */}
+              <div
+                className="p-3.5 sm:p-4 rounded-2xl space-y-3.5 relative z-30 overflow-visible"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] sm:text-xs font-mono font-semibold text-white/50 uppercase tracking-wider">
+                      AI Model:
+                    </span>
+                    <ModelSelector
+                      activeProvider={activeProvider}
+                      onProviderChange={setActiveProvider}
+                      isDropUp={false}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setDualityRatio(50)}
+                    className="text-[10px] text-white/40 hover:text-white font-mono px-2 py-1 rounded-lg bg-white/5 border border-white/10 transition-colors cursor-pointer"
+                  >
+                    Reset 50/50
+                  </button>
+                </div>
+
+                <DualitySlider
+                  value={dualityRatio}
+                  onChange={setDualityRatio}
+                  disabled={false}
+                />
+              </div>
+
+              {/* Prompt suggestion chips */}
+              <div className="relative z-10">
+                <SuggestionChips
+                  onSelect={(text) => {
+                    setInputVal(text);
+                  }}
+                  count={6}
+                />
+              </div>
             </motion.div>
           </div>
         )}

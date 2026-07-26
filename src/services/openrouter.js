@@ -53,8 +53,9 @@ const FREE_MODEL_CHAIN = [
  * @param {Array} history - Prior conversation messages [{sender, text}]
  * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy'
  * @param {string|null} [model] - Optional override model slug (bypasses fallback chain)
+ * @param {number} [customRatio=50] - User-configured logic percentage ratio (0-100)
  */
-export async function getOpenRouterSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = null) {
+export async function getOpenRouterSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = null, customRatio = 50) {
   if (!API_KEY || API_KEY.length < 8) {
     throw new Error('API key not configured — please add VITE_OPENROUTER_API_KEY to your .env file and restart the dev server.');
   }
@@ -65,7 +66,7 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
   } else if (activeMode.includes('Empathy')) {
     modeInstruction = "\nCURRENT MODE: EMPATHY. Maximize emotional intelligence, personal growth, real-world context. Set empathyRatio 85-95 and logicRatio 5-15.";
   } else {
-    modeInstruction = "\nCURRENT MODE: DUALITY. Balance logic and empathy 50/50. Set logicRatio 50 and empathyRatio 50.";
+    modeInstruction = `\nCURRENT MODE: DUALITY. User-configured target ratio: ${customRatio}% Machine Logic and ${100 - customRatio}% Human Empathy. Balance your explanation according to this target. Set logicRatio around ${customRatio} and empathyRatio around ${100 - customRatio}.`;
   }
 
   const messages = [

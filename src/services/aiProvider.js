@@ -43,16 +43,17 @@ export const AI_PROVIDERS = [
  * @param {string} activeMode - 'Logic' | 'Duality' | 'Empathy'
  * @param {string} provider - 'gemini' | 'groq' | 'openrouter' | 'grok'
  * @param {string} [model] - Optional specific model ID
+ * @param {number} [customRatio=50] - User-configured logic percentage ratio (0-100)
  */
-export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Duality', provider = 'gemini', model) {
+export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Duality', provider = 'gemini', model, customRatio = 50) {
   if (provider === 'groq') {
-    return await getGroqSynthesizedResponse(userPrompt, history, activeMode, model || 'llama-3.3-70b-versatile');
+    return await getGroqSynthesizedResponse(userPrompt, history, activeMode, model || 'llama-3.3-70b-versatile', customRatio);
   } else if (provider === 'openrouter') {
-    return await getOpenRouterSynthesizedResponse(userPrompt, history, activeMode, model || 'google/gemma-4-31b-it:free');
+    return await getOpenRouterSynthesizedResponse(userPrompt, history, activeMode, model || 'google/gemma-4-31b-it:free', customRatio);
   } else if (provider === 'grok') {
-    return await getGrokSynthesizedResponse(userPrompt, history, activeMode, model || 'grok-beta');
+    return await getGrokSynthesizedResponse(userPrompt, history, activeMode, model || 'grok-beta', customRatio);
   } else {
-    const res = await getGeminiResponse(userPrompt, history, activeMode);
+    const res = await getGeminiResponse(userPrompt, history, activeMode, customRatio);
     return {
       ...res,
       provider: 'gemini',
