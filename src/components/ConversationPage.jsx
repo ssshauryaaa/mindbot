@@ -8,12 +8,16 @@ import {
   Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
   Download, Clock, X, FileText, Image as ImageIcon, File,
+  Trash2, Search,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
 import FloatingActionButton from './ui/floating-action-button';
 import { getSynthesizedResponse } from '../services/aiProvider';
 
+import PremiumDualityMeter from "./DualityMeter";
+import UserMessage from "./UserMessage";
+import HistoryDrawer from "./HistoryDrawer";
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -93,7 +97,7 @@ function Sidebar({ onNavigate, hasStarted = false }) {
   const navigate = useNavigate();
   const dockItems = [
     { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
-    { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => { } },
+    { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => onNavigate('history') },
     { title: 'Landing Page', icon: <Compass className="h-full w-full" />, onClick: () => navigate('/landing') },
     { title: 'All Tools', icon: <LayoutGrid className="h-full w-full" />, onClick: () => { } },
     { title: 'More', icon: <MoreHorizontal className="h-full w-full" />, onClick: () => { } },
@@ -108,11 +112,10 @@ function Sidebar({ onNavigate, hasStarted = false }) {
 
       {/* Mobile — horizontal floating glass capsule dock at bottom center */}
       <div
-        className={`mobile-sidebar fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 md:hidden ${
-          hasStarted
-            ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)]'
-            : 'bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]'
-        }`}
+        className={`mobile-sidebar fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 md:hidden ${hasStarted
+          ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)]'
+          : 'bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]'
+          }`}
       >
         <FloatingDock items={dockItems} orientation="horizontal" />
       </div>
@@ -272,6 +275,9 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
   const [isListening, setIsListening] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [showProviderDropdown, setShowProviderDropdown] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [justSent, setJustSent] = useState(false);
+  const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const modeDropdownRef = useRef(null);
@@ -310,8 +316,8 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
+  const ingestFiles = (fileList) => {
+    const files = Array.from(fileList || []);
     if (!files.length) return;
 
     const newAttachments = files.map(file => ({
@@ -325,12 +331,14 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 
     setAttachments(prev => [...prev, ...newAttachments]);
 
-    // Show toast for uploaded file(s)
     const firstFile = files[0];
     const isImg = firstFile.type.startsWith('image/');
     const label = files.length > 1 ? `${files.length} files attached` : isImg ? `Image uploaded: ${firstFile.name}` : `File attached: ${firstFile.name}`;
     setToast({ id: Date.now(), message: label, isImage: isImg });
+  };
 
+  const handleFileSelect = (e) => {
+    ingestFiles(e.target.files);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -340,6 +348,32 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
       if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
       return prev.filter(a => a.id !== id);
     });
+  };
+
+  // Drag-and-drop attach: only the file-drag surface, guarded with a
+  // counter so nested enter/leave events (child elements) don't flicker it.
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    dragCounter.current += 1;
+    setIsDragging(true);
+  };
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    ingestFiles(e.dataTransfer?.files);
   };
 
   const handleVoiceDictation = () => {
@@ -377,12 +411,70 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
     if (!value.trim() && !attachments.length) return;
     onSend(value, attachments);
     setAttachments([]);
+    setJustSent(true);
+    setTimeout(() => setJustSent(false), 900);
   };
 
   const canSend = value.trim().length > 0 || attachments.length > 0;
 
   return (
-    <div className="glass-input rounded-2xl w-full relative" style={{ borderRadius: 18 }}>
+    <div
+      className="glass-input rounded-2xl w-full relative transition-shadow duration-300"
+      style={{
+        borderRadius: 18,
+        boxShadow: isDragging ? '0 0 0 1.5px rgba(52,211,153,0.5), 0 0 32px rgba(52,211,153,0.15)' : 'none',
+      }}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <style>{`
+        @keyframes ib-wave {
+          0%, 100% { transform: scaleY(0.35); }
+          50% { transform: scaleY(1); }
+        }
+        .ib-bar { animation: ib-wave 0.9s ease-in-out infinite; transform-origin: center; }
+        @keyframes ib-send-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.35); }
+          70% { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+          100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        }
+        .ib-send-pulse { animation: ib-send-pulse 1.4s ease-out 1; }
+        @media (prefers-reduced-motion: reduce) {
+          .ib-bar { animation: none; }
+          .ib-send-pulse { animation: none; }
+        }
+      `}</style>
+
+      {/* Drag-to-attach overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-40 rounded-2xl flex flex-col items-center justify-center gap-1.5 pointer-events-none"
+            style={{
+              background: 'rgba(6, 8, 10, 0.82)',
+              border: '1.5px dashed rgba(52,211,153,0.55)',
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            <motion.div
+              animate={{ y: [0, -4, 0] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-9 h-9 rounded-xl bg-emerald-400/15 border border-emerald-400/30 flex items-center justify-center"
+            >
+              <Paperclip className="w-4 h-4 text-emerald-300" />
+            </motion.div>
+            <span className="text-xs font-medium text-emerald-200" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Drop to attach
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
@@ -420,73 +512,80 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
       {/* Attachment Badges Row — Bigger Image Previews */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 px-4 pt-3.5 pb-1">
-          {attachments.map(att => (
-            <motion.div
-              key={att.id}
-              initial={{ opacity: 0, scale: 0.88 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.88 }}
-              className="relative group flex items-center"
-            >
-              {att.previewUrl ? (
-                /* Enlarged Image Card Preview */
-                <div
-                  className="relative flex items-center gap-3 pr-8 p-1.5 rounded-2xl overflow-hidden"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    backdropFilter: 'blur(16px)',
-                  }}
-                >
-                  <img
-                    src={att.previewUrl}
-                    alt={att.name}
-                    className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-md shrink-0"
-                  />
-                  <div className="flex flex-col min-w-0 pr-1">
-                    <span className="text-xs text-white/90 font-medium truncate max-w-[130px]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {att.name}
-                    </span>
-                    <span className="text-[10px] text-white/40 font-mono mt-0.5">{att.size}</span>
-                  </div>
-                  <button
-                    onClick={() => removeAttachment(att.id)}
-                    className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer"
-                    title="Remove image"
+          <AnimatePresence mode="popLayout">
+            {attachments.map(att => (
+              <motion.div
+                key={att.id}
+                layout
+                initial={{ opacity: 0, scale: 0.88 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.88 }}
+                className="relative group flex items-center"
+              >
+                {att.previewUrl ? (
+                  /* Enlarged Image Card Preview */
+                  <div
+                    className="relative flex items-center gap-3 pr-8 p-1.5 rounded-2xl overflow-hidden"
+                    style={{
+                      background: 'rgba(255,255,255,0.07)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      backdropFilter: 'blur(16px)',
+                    }}
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                /* Document/File Card Preview */
-                <div
-                  className="relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs text-white/88"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    backdropFilter: 'blur(16px)',
-                  }}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-white/80" />
+                    <img
+                      src={att.previewUrl}
+                      alt={att.name}
+                      className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-md shrink-0 transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="flex flex-col min-w-0 pr-1">
+                      <span className="text-xs text-white/90 font-medium truncate max-w-[130px]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {att.name}
+                      </span>
+                      <span className="text-[10px] text-white/40 font-mono mt-0.5">{att.size}</span>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.12 }}
+                      whileTap={{ scale: 0.88 }}
+                      onClick={() => removeAttachment(att.id)}
+                      className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </motion.button>
                   </div>
-                  <div className="flex flex-col min-w-0 pr-2">
-                    <span className="truncate max-w-[130px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {att.name}
-                    </span>
-                    <span className="text-[10px] text-white/40 font-mono">{att.size}</span>
-                  </div>
-                  <button
-                    onClick={() => removeAttachment(att.id)}
-                    className="hover:text-white text-white/40 ml-1 transition-colors cursor-pointer"
-                    title="Remove file"
+                ) : (
+                  /* Document/File Card Preview */
+                  <div
+                    className="relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs text-white/88"
+                    style={{
+                      background: 'rgba(255,255,255,0.07)',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      backdropFilter: 'blur(16px)',
+                    }}
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-white/80" />
+                    </div>
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="truncate max-w-[130px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {att.name}
+                      </span>
+                      <span className="text-[10px] text-white/40 font-mono">{att.size}</span>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.15 }}
+                      whileTap={{ scale: 0.88 }}
+                      onClick={() => removeAttachment(att.id)}
+                      className="hover:text-white text-white/40 ml-1 transition-colors cursor-pointer"
+                      title="Remove file"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </motion.button>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
@@ -515,6 +614,31 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
         className="w-full bg-transparent resize-none px-5 pt-4 pb-1 text-[15px] text-white/90 focus:outline-none leading-relaxed"
         style={{ fontFamily: 'Inter, sans-serif', minHeight: large ? 72 : 44 }}
       />
+
+      {/* Live listening indicator */}
+      <AnimatePresence>
+        {isListening && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="flex items-center gap-2 px-5 pb-1.5 -mt-1"
+          >
+            <div className="flex items-end gap-[2.5px] h-3.5">
+              {[0, 1, 2, 3, 4].map(i => (
+                <span
+                  key={i}
+                  className="ib-bar w-[2.5px] rounded-full bg-red-400"
+                  style={{ height: '100%', animationDelay: `${i * 0.12}s` }}
+                />
+              ))}
+            </div>
+            <span className="text-[11px] text-red-300/90 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Listening…
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 pb-3.5 pt-1 gap-2">
         <div className="flex items-center gap-2">
@@ -768,92 +892,48 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
               // },
             ]}
           />
-          <button onClick={handleSend} disabled={!canSend} aria-label="Send"
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+          <motion.button
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label="Send"
+            whileHover={canSend ? { scale: 1.06 } : {}}
+            whileTap={canSend ? { scale: 0.9 } : {}}
+            animate={canSend ? { scale: 1 } : { scale: 1 }}
+            initial={false}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${justSent ? 'ib-send-pulse' : ''}`}
             style={{
               background: canSend ? '#ffffff' : 'rgba(255,255,255,0.05)',
               border: canSend ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.08)',
               boxShadow: canSend ? '0 0 12px rgba(255,255,255,0.25)' : 'none',
               opacity: canSend ? 1 : 0.4,
-            }}>
-            <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5} />
-          </button>
+            }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {justSent ? (
+                <motion.span
+                  key="sent"
+                  initial={{ scale: 0.4, opacity: 0, rotate: -45 }}
+                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                  exit={{ scale: 0.4, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                >
+                  <Check className="w-4 h-4 text-black" strokeWidth={2} />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="send"
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.6, opacity: 0 }}
+                >
+                  <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5} />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
         </div>
       </div>
     </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════════
-   7. USER MESSAGE — small pill on the right
-════════════════════════════════════════════════════════════════ */
-function UserMessage({ msg }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, x: 10 }}
-      animate={{ opacity: 1, y: 0, x: 0 }}
-      transition={{ duration: 0.25 }}
-      className="flex flex-col items-end gap-1.5"
-    >
-      {msg.attachments && msg.attachments.length > 0 && (
-        <div className="flex flex-wrap justify-end gap-2.5 max-w-md mb-1">
-          {msg.attachments.map((att, idx) => (
-            <div key={idx} className="relative">
-              {att.previewUrl ? (
-                <div
-                  className="flex flex-col gap-1 p-1.5 rounded-2xl"
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    backdropFilter: 'blur(16px)',
-                  }}
-                >
-                  <img
-                    src={att.previewUrl}
-                    alt={att.name}
-                    className="w-28 h-28 rounded-xl object-cover border border-white/20 shadow-lg"
-                  />
-                  <div className="px-1 py-0.5 flex items-center justify-between gap-1 max-w-[112px]">
-                    <span className="text-[11px] text-white/80 font-medium truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {att.name}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs text-white/88"
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    backdropFilter: 'blur(12px)',
-                  }}
-                >
-                  <FileText className="w-4 h-4 text-white/70" />
-                  <span className="truncate max-w-[140px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {att.name}
-                  </span>
-                  <span className="text-[10px] text-white/40 font-mono">{att.size}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {msg.text && (
-        <div
-          className="max-w-[min(28rem,calc(100vw-2rem))] text-sm text-white/90 px-4 py-2.5 rounded-2xl"
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            lineHeight: 1.5,
-          }}
-        >
-          {msg.text}
-        </div>
-      )}
-    </motion.div>
   );
 }
 
@@ -951,82 +1031,14 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
       </div>
 
       {/* Dual-stream insight cards — Monochrome */}
-      {(msg.aiReasoning || msg.humanInsight) && (
-        <div className="space-y-2 max-w-3xl mt-2">
-          {/* Duality Ratio Progress Meter */}
-          {(msg.logicRatio !== undefined || msg.empathyRatio !== undefined) && (
-            <div className="p-2.5 rounded-xl text-xs space-y-1.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="flex items-center justify-between text-[11px] font-mono text-white/60">
-                <span className="flex items-center gap-1 text-white/85">
-                  <Cpu className="w-3 h-3 text-white/60" /> Machine Logic ({msg.logicRatio ?? 50}%)
-                </span>
-                <span className="flex items-center gap-1.5 text-white/40 text-[10px] uppercase font-bold tracking-wider">
-                  {msg.provider === 'openrouter' ? (
-                    <span className="flex items-center gap-1 text-emerald-400/90 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-md">
-                      <Globe className="w-2.5 h-2.5" /> OpenRouter
-                    </span>
-                  ) : msg.provider === 'groq' ? (
-                    <span className="flex items-center gap-1 text-orange-400/90 bg-orange-400/10 border border-orange-400/20 px-1.5 py-0.5 rounded-md">
-                      <Zap className="w-2.5 h-2.5" /> Groq
-                    </span>
-                  ) : msg.provider === 'grok' ? (
-                    <span className="flex items-center gap-1 text-amber-400/90 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-md">
-                      <Zap className="w-2.5 h-2.5" /> Grok
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-sky-400/90 bg-sky-400/10 border border-sky-400/20 px-1.5 py-0.5 rounded-md">
-                      <Sparkles className="w-2.5 h-2.5" /> Gemini
-                    </span>
-                  )}
-                  <span>• {msg.modeName || 'Synaptic Duality'}</span>
-                </span>
-                <span className="flex items-center gap-1 text-white/85">
-                  Human Context ({msg.empathyRatio ?? 50}%) <Brain className="w-3 h-3 text-white/60" />
-                </span>
-              </div>
-              {/* Dual monochrome bar */}
-              <div className="h-1.5 w-full rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div
-                  className="h-full transition-all duration-700 bg-white"
-                  style={{
-                    width: `${msg.logicRatio ?? 50}%`,
-                    boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)',
-                  }}
-                />
-                <div
-                  className="h-full transition-all duration-700"
-                  style={{
-                    width: `${msg.empathyRatio ?? 50}%`,
-                    background: 'rgba(255, 255, 255, 0.3)',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {msg.aiReasoning && (
-              <div className="p-3 rounded-xl text-xs"
-                style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/70">
-                  <Cpu className="w-3 h-3 text-white/50" /><span>AI Stream (Logic)</span>
-                </div>
-                <p className="text-white/60 leading-snug">{msg.aiReasoning}</p>
-              </div>
-            )}
-            {msg.humanInsight && (
-              <div className="p-3 rounded-xl text-xs"
-                style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <div className="flex items-center gap-1.5 mb-1.5 font-mono font-semibold text-white/70">
-                  <Brain className="w-3 h-3 text-white/50" /><span>Human Context (Empathy)</span>
-                </div>
-                <p className="text-white/60 leading-snug">{msg.humanInsight}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <PremiumDualityMeter
+        aiReasoning={msg.aiReasoning}
+        humanInsight={msg.humanInsight}
+        logicRatio={msg.logicRatio}
+        empathyRatio={msg.empathyRatio}
+        provider={msg.provider}
+        modeName={msg.modeName}
+      />
 
       {/* Action bar */}
       <div className="flex flex-wrap items-center justify-between max-w-3xl pt-1 gap-y-1">
@@ -1139,8 +1151,10 @@ function TypingIndicator() {
   );
 }
 
+
+
 /* ════════════════════════════════════════════════════════════════
-   10. CONVERSATION PAGE — main export
+   11. CONVERSATION PAGE — main export
 ════════════════════════════════════════════════════════════════ */
 export default function ConversationPage() {
   const navigate = useNavigate();
@@ -1149,18 +1163,114 @@ export default function ConversationPage() {
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [transitioning, setTransitioning] = useState(false); // true while welcome→chat morph plays
   const [activeMode, setActiveMode] = useState('Duality');
   const [activeProvider, setActiveProvider] = useState('gemini');
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+
+  // Persistent session storage
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mindbot_saved_sessions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentSessionId, setCurrentSessionId] = useState(() => 'session_' + Date.now());
+
+  // Auto-save current session to history whenever messages update
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const firstUserMsg = messages.find(m => m.sender === 'user');
+    const titleText = firstUserMsg ? firstUserMsg.text.slice(0, 45) : 'New Conversation';
+    const title = titleText.length >= 45 ? titleText + '...' : titleText;
+
+    const sessionData = {
+      id: currentSessionId,
+      title,
+      timestamp: new Date().toISOString(),
+      dateFormatted: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      messages,
+      activeMode,
+      activeProvider,
+    };
+
+    setSessions(prev => {
+      const existingIndex = prev.findIndex(s => s.id === currentSessionId);
+      let updated;
+      if (existingIndex >= 0) {
+        updated = [...prev];
+        updated[existingIndex] = sessionData;
+      } else {
+        updated = [sessionData, ...prev];
+      }
+      try {
+        localStorage.setItem('mindbot_saved_sessions', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save session to localStorage:', e);
+      }
+      return updated;
+    });
+  }, [messages, currentSessionId, activeMode, activeProvider]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const loadSession = (session) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages || []);
+    setHasStarted(true);
+    if (session.activeMode) setActiveMode(session.activeMode);
+    if (session.activeProvider) setActiveProvider(session.activeProvider);
+  };
+
+  const deleteSession = (sessionId) => {
+    setSessions(prev => {
+      const updated = prev.filter(s => s.id !== sessionId);
+      try {
+        localStorage.setItem('mindbot_saved_sessions', JSON.stringify(updated));
+      } catch { }
+      return updated;
+    });
+    if (currentSessionId === sessionId) {
+      resetSession();
+    }
+  };
+
+  const clearAllSessions = () => {
+    if (window.confirm('Are you sure you want to clear all conversation history?')) {
+      setSessions([]);
+      try {
+        localStorage.removeItem('mindbot_saved_sessions');
+      } catch { }
+      resetSession();
+    }
+  };
+
+  const resetSession = () => {
+    setCurrentSessionId('session_' + Date.now());
+    setMessages([]);
+    setHasStarted(false);
+  };
+
   const sendMessage = async (text, attachments = []) => {
     const rawText = (text || inputVal).trim();
     if (!rawText && (!attachments || attachments.length === 0)) return;
     setInputVal('');
-    setHasStarted(true);
+
+    // Choreographed welcome → chat transition on the FIRST message
+    if (!hasStarted) {
+      setTransitioning(true);
+      // Let the welcome exit animations play (~400ms), then flip to chat
+      await new Promise(r => setTimeout(r, 420));
+      setHasStarted(true);
+      // Small extra breather so chat entrance begins cleanly
+      await new Promise(r => setTimeout(r, 80));
+      setTransitioning(false);
+    }
 
     const startTime = Date.now();
 
@@ -1232,7 +1342,6 @@ export default function ConversationPage() {
     }
   };
 
-
   // Replaces a specific AI message with a fresh AI response to the same prompt
   const regenerateMessage = async (aiMsgId, userPrompt, historyBeforeMsg) => {
     if (isTyping) return;
@@ -1280,64 +1389,97 @@ export default function ConversationPage() {
     }
   };
 
-
-  const resetSession = () => {
-    setMessages([]);
-    setHasStarted(false);
-  };
+  /* ── Transition CSS injected once ── */
+  const transitionCSS = `
+    @keyframes cp-blur-up {
+      from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+      to   { opacity: 0; transform: translateY(-32px) scale(0.96); filter: blur(6px); }
+    }
+    .cp-exit-logo  { animation: cp-blur-up 0.38s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0s; }
+    .cp-exit-title { animation: cp-blur-up 0.38s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.06s; }
+    .cp-exit-input { animation: cp-blur-up 0.32s cubic-bezier(0.4,0,0.2,1) forwards; animation-delay: 0.12s; }
+    @media (prefers-reduced-motion: reduce) {
+      .cp-exit-logo, .cp-exit-title, .cp-exit-input { animation: none; opacity: 0; }
+    }
+  `;
 
   return (
     <div className="relative flex bg-black" style={{ height: '100dvh', width: '100vw', overflow: 'hidden' }}>
+      <style>{transitionCSS}</style>
       <BeamBackground />
 
-      <Sidebar onNavigate={action => { if (action === 'new') resetSession(); }} hasStarted={hasStarted} />
+      <Sidebar
+        onNavigate={action => {
+          if (action === 'new') resetSession();
+          if (action === 'history') setShowHistoryDrawer(true);
+        }}
+        hasStarted={hasStarted}
+      />
+
+      <HistoryDrawer
+        isOpen={showHistoryDrawer}
+        onClose={() => setShowHistoryDrawer(false)}
+        sessions={sessions}
+        onLoadSession={loadSession}
+        onDeleteSession={deleteSession}
+        onClearAll={clearAllSessions}
+      />
 
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
         {/* ── WELCOME SCREEN ── */}
-        <AnimatePresence mode="wait">
-          {!hasStarted && (
-            <motion.div key="welcome"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.35 }}
-              className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20 sm:pb-12">
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.05, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-5 sm:mb-7">
-                <LogoMark size={36} />
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5 }}
-                className="text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2"
-                style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-                What can I help you<br /><span style={{ opacity: 0.45 }}>explore today?</span>
-              </motion.h1>
-
-              <motion.div
-                initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.22, duration: 0.5 }}
-                className="w-full max-w-2xl mb-7 px-1 sm:px-0">
-                <InputBox
-                  value={inputVal} onChange={setInputVal}
-                  onSend={sendMessage} large
-                  activeMode={activeMode} onModeChange={setActiveMode}
-                  activeProvider={activeProvider} onProviderChange={setActiveProvider}
-                />
-              </motion.div>
+        {!hasStarted && (
+          <div
+            className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20 sm:pb-12"
+          >
+            {/* Logo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.75 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.05, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              className={`mb-5 sm:mb-7 ${transitioning ? 'cp-exit-logo' : ''}`}
+            >
+              <LogoMark size={36} />
             </motion.div>
-          )}
-        </AnimatePresence>
+
+            {/* Headline */}
+            <motion.h1
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className={`text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2 ${transitioning ? 'cp-exit-title' : ''}`}
+              style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}
+            >
+              What can I help you<br /><span style={{ opacity: 0.45 }}>explore today?</span>
+            </motion.h1>
+
+            {/* Input Box — slides up & blurs out */}
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.22, duration: 0.5 }}
+              className={`w-full max-w-2xl mb-7 px-1 sm:px-0 ${transitioning ? 'cp-exit-input' : ''}`}
+            >
+              <InputBox
+                value={inputVal} onChange={setInputVal}
+                onSend={sendMessage} large
+                activeMode={activeMode} onModeChange={setActiveMode}
+                activeProvider={activeProvider} onProviderChange={setActiveProvider}
+              />
+            </motion.div>
+          </div>
+        )}
 
         {/* ── ACTIVE CONVERSATION ── */}
         <AnimatePresence>
           {hasStarted && (
-            <motion.div key="chat"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="flex-1 flex flex-col overflow-hidden">
+            <motion.div
+              key="chat"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
 
               {/* Message thread */}
               <div
@@ -1359,7 +1501,13 @@ export default function ConversationPage() {
               </div>
 
               {/* Floating input — with safe-area bottom for iOS */}
-              <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area"
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
+              >
                 <div className="w-full max-w-2xl pointer-events-auto">
                   <InputBox
                     value={inputVal} onChange={setInputVal}
@@ -1368,7 +1516,7 @@ export default function ConversationPage() {
                     activeProvider={activeProvider} onProviderChange={setActiveProvider}
                   />
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
