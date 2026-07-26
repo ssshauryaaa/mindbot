@@ -89,7 +89,7 @@ function LogoMark({ size = 48 }) {
 /* ════════════════════════════════════════════════════════════════
    3. SIDEBAR
 ════════════════════════════════════════════════════════════════ */
-function Sidebar({ onNavigate }) {
+function Sidebar({ onNavigate, hasStarted = false }) {
   const navigate = useNavigate();
   const dockItems = [
     { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
@@ -101,28 +101,21 @@ function Sidebar({ onNavigate }) {
 
   return (
     <>
-      {/* Desktop / Tablet — vertical dock on the left */}
+      {/* Desktop / Tablet — vertical dock floating on the left */}
       <div className="desktop-sidebar fixed left-4 top-1/2 -translate-y-1/2 z-50">
         <FloatingDock items={dockItems} orientation="vertical" />
       </div>
 
-      {/* Mobile — horizontal dock pinned to bottom */}
-      <nav className="mobile-bottom-nav items-center justify-around px-2 py-2">
-        {dockItems.map(item => (
-          <button
-            key={item.title}
-            onClick={item.onClick}
-            title={item.title}
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-xl text-white/50 hover:text-white/90 active:scale-90 transition-all cursor-pointer"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span className="w-5 h-5">{item.icon}</span>
-            <span className="text-[9px] font-medium tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
-              {item.title.split(' ')[0]}
-            </span>
-          </button>
-        ))}
-      </nav>
+      {/* Mobile — horizontal floating glass capsule dock at bottom center */}
+      <div
+        className={`mobile-sidebar fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 md:hidden ${
+          hasStarted
+            ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)]'
+            : 'bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]'
+        }`}
+      >
+        <FloatingDock items={dockItems} orientation="horizontal" />
+      </div>
     </>
   );
 }
@@ -1297,7 +1290,7 @@ export default function ConversationPage() {
     <div className="relative flex bg-black" style={{ height: '100dvh', width: '100vw', overflow: 'hidden' }}>
       <BeamBackground />
 
-      <Sidebar onNavigate={action => { if (action === 'new') resetSession(); }} />
+      <Sidebar onNavigate={action => { if (action === 'new') resetSession(); }} hasStarted={hasStarted} />
 
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
 

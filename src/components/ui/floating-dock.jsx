@@ -31,51 +31,31 @@ const FloatingDockMobile = ({
   items,
   className,
 }) => {
-  const [open, setOpen] = useState(false);
+  let mouseVal = useMotionValue(Infinity);
+
   return (
-    <div className={cn("relative block md:hidden z-50", className)}>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            layoutId="nav"
-            className="absolute left-full top-0 ml-4 flex flex-col gap-2 bg-neutral-950/80 border border-white/5 p-2 rounded-2xl backdrop-blur-md"
-          >
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{
-                  opacity: 1,
-                  x: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  x: -10,
-                  transition: {
-                    delay: idx * 0.05,
-                  },
-                }}
-                transition={{ delay: (items.length - 1 - idx) * 0.05 }}
-              >
-                <button
-                  onClick={item.onClick}
-                  key={item.title}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
-                >
-                  <div className="h-5 w-5 flex items-center justify-center">{item.icon}</div>
-                </button>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-white/5"
-      >
-        <span className="text-xs">Menu</span>
-      </button>
-    </div>
+    <motion.div
+      onTouchStart={(e) => {
+        if (e.touches[0]) mouseVal.set(e.touches[0].clientX);
+      }}
+      onTouchMove={(e) => {
+        if (e.touches[0]) mouseVal.set(e.touches[0].clientX);
+      }}
+      onTouchEnd={() => mouseVal.set(Infinity)}
+      className={cn(
+        "flex md:hidden items-center gap-2.5 rounded-full bg-neutral-950/80 border border-white/15 px-3 py-2 backdrop-blur-xl shadow-2xl pointer-events-auto",
+        className
+      )}
+    >
+      {items.map((item) => (
+        <IconContainer
+          mouseVal={mouseVal}
+          key={item.title}
+          orientation="horizontal"
+          {...item}
+        />
+      ))}
+    </motion.div>
   );
 };
 
@@ -123,6 +103,8 @@ function IconContainer({
   orientation = "vertical",
 }) {
   let ref = useRef(null);
+  const [hovered, setHovered] = useState(false);
+  const timerRef = useRef(null);
 
   let distance = useTransform(mouseVal, (val) => {
     let bounds = ref.current?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0 };
@@ -167,8 +149,6 @@ function IconContainer({
     damping: 12,
   });
 
-  const [hovered, setHovered] = useState(false);
-
   const handleClick = (e) => {
     if (onClick) {
       e.preventDefault();
@@ -176,21 +156,29 @@ function IconContainer({
     }
   };
 
+  const handleTouchStart = () => {
+    setHovered(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setHovered(false), 1400);
+  };
+
   return (
     <a href={href || "#"} onClick={handleClick}>
       <motion.div
         ref={ref}
         style={{ width, height }}
+        whileTap={{ scale: 0.88 }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="relative flex aspect-square items-center justify-center rounded-full bg-neutral-900/80 border border-white/10 hover:border-white/20 transition-colors group cursor-pointer"
+        onTouchStart={handleTouchStart}
+        className="relative flex aspect-square items-center justify-center rounded-full bg-neutral-900/80 border border-white/10 hover:border-white/20 active:border-white/40 transition-colors group cursor-pointer"
       >
         <AnimatePresence>
           {hovered && (
             <motion.div
               initial={orientation === "vertical"
                 ? { opacity: 0, x: 10, y: "-50%" }
-                : { opacity: 0, y: 10, x: "-50%" }
+                : { opacity: 0, y: 8, x: "-50%" }
               }
               animate={orientation === "vertical"
                 ? { opacity: 1, x: 0, y: "-50%" }
@@ -198,14 +186,14 @@ function IconContainer({
               }
               exit={orientation === "vertical"
                 ? { opacity: 0, x: 2, y: "-50%" }
-                : { opacity: 0, y: 2, x: "-50%" }
+                : { opacity: 0, y: 4, x: "-50%" }
               }
               style={orientation === "vertical"
                 ? { left: "100%", top: "50%", transform: "translateY(-50%)" }
-                : { left: "50%", top: "-2rem", transform: "translateX(-50%)" }
+                : { left: "50%", top: "-2.3rem", transform: "translateX(-50%)" }
               }
               className={cn(
-                "absolute w-fit rounded-xl border border-white/10 bg-neutral-950/95 px-3 py-1.5 text-xs whitespace-pre text-white shadow-xl z-50 pointer-events-none backdrop-blur-md",
+                "absolute w-fit rounded-xl border border-white/15 bg-neutral-950/95 px-3 py-1 text-[11px] font-medium whitespace-pre text-white shadow-2xl z-50 pointer-events-none backdrop-blur-md",
                 orientation === "vertical" ? "ml-3" : ""
               )}
             >

@@ -79,50 +79,46 @@ export default function Mannequin({ pointer, isAnimating = false, onAnimationCom
         const t = state.clock.elapsedTime;
 
         if (isAnimating) {
-            // Slower, majestic multi-phase progress (~3.0s duration)
-            animProgress.current = Math.min(animProgress.current + delta * 0.33, 1);
+            // Smooth, cinematic exit zoom progress (~2.2s duration)
+            animProgress.current = Math.min(animProgress.current + delta * 0.45, 1);
             const p = animProgress.current;
 
-            // Custom smooth easing curve
+            // Ultra-smooth cubic ease-in-out curve for perfectly linear trajectory
             const ease = p < 0.5
-                ? 2 * p * p
-                : 1 - Math.pow(-2 * p + 2, 2) / 2;
+                ? 4 * p * p * p
+                : 1 - Math.pow(-2 * p + 2, 3) / 2;
 
-            // Interactive subtle cursor sway
+            // Interactive subtle cursor sway fading out as model centers
             const userP = pointer?.current ?? { x: 0, y: 0 };
-            const interactiveTiltX = -userP.y * 0.06 * (1 - p * 0.8);
-            const interactiveTiltY = userP.x * 0.08 * (1 - p * 0.8);
+            const interactiveTiltX = -userP.y * 0.04 * (1 - ease);
+            const interactiveTiltY = userP.x * 0.05 * (1 - ease);
 
-            // Initial start position from props
+            // Start position from props
             const startX = props.position?.[0] ?? 2;
             const startY = props.position?.[1] ?? -5.65;
 
-            // Target position: (0, 0, 0.5) is the EXACT center of the screen canvas
+            // Unified scale & position lerping — targeting exact chest/core at screen center (0, -0.05, 0.5)
+            const targetScale = lerp(1, 4.8, ease);
             const targetX = lerp(startX, 0, ease);
-            const targetY = lerp(startY, 0.1, ease); // 0.1 aligns exact core/chest center
-            const targetZ = lerp(0, 0.6, ease);
+            const targetY = lerp(startY, -5.3, ease);
+            const targetZ = lerp(0, 0.5, ease);
 
             if (outerGroup.current) {
-                outerGroup.current.position.x = targetX;
-                outerGroup.current.position.y = targetY;
-                outerGroup.current.position.z = targetZ;
+                outerGroup.current.position.set(targetX, targetY, targetZ);
 
-                // Rotate to face directly straight into camera at center
+                // Smoothly align rotation to face straight ahead
                 const targetRotY = lerp(STATIC_ROTATION_Y, 0, ease) + interactiveTiltY;
                 const targetRotX = interactiveTiltX;
 
                 outerGroup.current.rotation.y = targetRotY;
                 outerGroup.current.rotation.x = targetRotX;
-
-                // Zoom scale centered on model core: 1 -> 5.5
-                const targetScale = lerp(1, 5.5, Math.pow(p, 1.8));
                 outerGroup.current.scale.setScalar(targetScale);
             }
 
-            // Pulsing emissive glow builds into hyper-glow
+            // Pulsing emissive hyper-glow during zoom
             if (materials.current.length) {
-                const pulse = Math.sin(p * Math.PI * 3) * 0.5 + 0.5;
-                const glow = (p * 6.5) + (pulse * 1.5 * (1 - p));
+                const pulse = Math.sin(p * Math.PI * 2) * 0.5 + 0.5;
+                const glow = (ease * 7.5) + (pulse * 1.2 * (1 - ease));
                 materials.current.forEach((m) => { m.emissiveIntensity = glow; });
             }
 
