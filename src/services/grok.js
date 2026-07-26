@@ -1,21 +1,21 @@
 /**
- * gemini.js
- * Gemini AI service using the official @google/genai SDK.
- * Provides real AI responses with multi-turn conversation context.
+ * grok.js
+ * Grok AI service using the xAI OpenAI-compatible REST API.
+ * Provides real Grok AI responses with multi-turn conversation context.
  */
 
-import { GoogleGenAI } from '@google/genai';
 import { generateSmartResponse } from './fallback.js';
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const API_KEY = import.meta.env.VITE_GROK_API_KEY || import.meta.env.VITE_XAI_API_KEY;
+const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
 
-const SYSTEM_INSTRUCTION_BASE = `You are Synaptica, a sharp AI & Human Duality Intelligence System.
+const SYSTEM_INSTRUCTION_BASE = `You are Synaptica, a sharp AI & Human Duality Intelligence System powered by Grok.
 
 You help users with academic stream choices, career decisions, coding, logic, and life guidance by synthesizing two distinct streams of thought:
 1. Machine Logic (analytical data, facts, formulas, structure)
 2. Human Empathy (emotional intelligence, real-world trade-offs, perspective)
 
-Respond ONLY with a raw JSON object (no markdown, no extra text). Exact shape:
+Respond ONLY with a raw JSON object (no markdown formatting, no text before or after). Exact JSON structure:
 {
   "text": "<Direct, natural answer in 2-4 sentences tailored to the query.>",
   "aiReasoning": "<1-2 sentence factual, logical rationale based on data or objective criteria. Never mention AI internals.>",
@@ -31,23 +31,21 @@ Absolute rules:
 - Maintain consistency with past conversation context.`;
 
 /**
- * Synthesizes a real AI response using Gemini 2.0 Flash with Duality mode support.
+ * Synthesizes a response using Grok AI (xAI API) with Duality mode support.
  *
  * @param {string} userPrompt - The user's message
  * @param {Array} history - Prior conversation messages [{sender, text}]
- * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy'
+ * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy' | 'Logic' | 'Duality' | 'Empathy'
+ * @param {string} model - 'grok-beta'
  * @returns {Promise<{ text: string, aiReasoning: string, humanInsight: string, logicRatio: number, empathyRatio: number, modeName: string }>}
  */
-export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality') {
+export async function getGrokSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = 'grok-beta') {
   if (!API_KEY || API_KEY.length < 8) {
-    throw new Error('API key not configured — please add VITE_GEMINI_API_KEY to your .env file and restart the dev server.');
+    throw new Error('API key not configured — please add VITE_GROK_API_KEY to your .env file and restart the dev server.');
   }
 
 
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
-
-    // Mode-specific instructions
     let modeInstruction = "";
     if (activeMode.includes('Logic')) {
       modeInstruction = "\nCURRENT MODE: LOGIC. Maximize analytical depth, structure, facts, and code/formulas. Set logicRatio around 85-95 and empathyRatio around 5-15.";
@@ -57,33 +55,52 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
       modeInstruction = "\nCURRENT MODE: DUALITY. Balance AI logic and human empathy equally 50/50. Set logicRatio around 50 and empathyRatio around 50.";
     }
 
+    const messages = [
+      {
+        role: 'system',
+        content: SYSTEM_INSTRUCTION_BASE + modeInstruction,
+      },
+    ];
+
     // Build multi-turn history (last 8 messages for context)
-    const contents = history
+    history
       .slice(-8)
       .filter(msg => typeof msg.text === 'string' && msg.text.trim().length > 0)
-      .map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }],
-      }));
+      .forEach(msg => {
+        messages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text,
+        });
+      });
 
-    // Add current user message
-    contents.push({
+    // Current user message
+    messages.push({
       role: 'user',
-      parts: [{ text: userPrompt }],
+      content: userPrompt,
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION_BASE + modeInstruction,
-        temperature: activeMode === 'Pure Logic' ? 0.35 : activeMode === 'Human Empathy' ? 0.85 : 0.7,
-        responseMimeType: 'application/json',
+    const res = await fetch(GROK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY.trim()}`,
       },
-      contents,
+      body: JSON.stringify({
+        model: model || 'grok-beta',
+        messages: messages,
+        temperature: activeMode.includes('Logic') ? 0.35 : activeMode.includes('Empathy') ? 0.85 : 0.7,
+        response_format: { type: 'json_object' },
+      }),
     });
 
-    const rawText = response.text;
-    if (!rawText) throw new Error('Empty response from Gemini');
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Grok API Error HTTP ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const rawText = data?.choices?.[0]?.message?.content;
+    if (!rawText) throw new Error('Empty response content from Grok API');
 
     const cleaned = rawText
       .replace(/^```json\s*/i, '')
@@ -94,10 +111,10 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
     const result = JSON.parse(cleaned);
 
     if (!result.text || !result.aiReasoning || !result.humanInsight) {
-      throw new Error('Incomplete JSON from Gemini: ' + JSON.stringify(result));
+      throw new Error('Incomplete JSON schema returned from Grok');
     }
 
-    const defaultRatios = activeMode === 'Pure Logic' ? { l: 90, e: 10 } : activeMode === 'Human Empathy' ? { l: 10, e: 90 } : { l: 50, e: 50 };
+    const defaultRatios = activeMode.includes('Logic') ? { l: 90, e: 10 } : activeMode.includes('Empathy') ? { l: 10, e: 90 } : { l: 50, e: 50 };
 
     return {
       text: result.text,
@@ -106,26 +123,11 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
       logicRatio: typeof result.logicRatio === 'number' ? result.logicRatio : defaultRatios.l,
       empathyRatio: typeof result.empathyRatio === 'number' ? result.empathyRatio : defaultRatios.e,
       modeName: activeMode,
+      provider: 'grok',
+      modelUsed: model || 'grok-beta',
     };
   } catch (err) {
-    console.error('[MindBot] Gemini API error:', err.message, err);
+    console.error('[MindBot] Grok API error:', err.message, err);
     throw err;
   }
-}
-
-
-/**
- * AI Lens — Intake helper
- */
-export async function getAILens(answers) {
-  return generateSmartResponse(answers.join(' '));
-}
-
-/**
- * Human Lens — Intake helper
- */
-export async function getHumanLens(answers, aiLensResult) {
-  return {
-    question: "What part of this recommendation feels most natural to you?"
-  };
 }

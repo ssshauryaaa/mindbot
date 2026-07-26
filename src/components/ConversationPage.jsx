@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Bookmark, Compass, LayoutGrid,
   MoreHorizontal, Mic, Settings2, MessageSquare,
-  ChevronDown, Sparkles, Brain, Cpu,
+  ChevronDown, Sparkles, Brain, Cpu, Zap, Globe,
   Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
   Download, Clock, X, FileText, Image as ImageIcon, File,
@@ -12,7 +12,8 @@ import {
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
 import FloatingActionButton from './ui/floating-action-button';
-import { getSynthesizedResponse } from '../services/gemini';
+import { getSynthesizedResponse } from '../services/aiProvider';
+
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -273,28 +274,33 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, dropUp }) {
+function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, activeProvider = 'gemini', onProviderChange, dropUp }) {
   const [attachments, setAttachments] = useState([]);
   const [isListening, setIsListening] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const modeDropdownRef = useRef(null);
+  const providerDropdownRef = useRef(null);
 
   // If dropUp is specified use it, otherwise open downward when large (welcome screen) and upward when small (active chat)
   const isDropUp = dropUp !== undefined ? dropUp : !large;
 
-  // Close mode dropdown on outside click
+  // Close mode and provider dropdowns on outside click
   useEffect(() => {
-    if (!showModeDropdown) return;
     const handleClickOutside = (e) => {
       if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target)) {
         setShowModeDropdown(false);
       }
+      if (providerDropdownRef.current && !providerDropdownRef.current.contains(e.target)) {
+        setShowProviderDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showModeDropdown]);
+  }, []);
+
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -518,107 +524,223 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
       />
 
       <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 pb-3.5 pt-1 gap-2">
-        {/* Duality Mode Selector Dropdown — Black & White Theme */}
-        <div className="relative" ref={modeDropdownRef}>
-          <button
-            onClick={() => setShowModeDropdown(v => !v)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: showModeDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
-              backdropFilter: 'blur(12px)',
-            }}
-            title="Choose Duality Mode"
-          >
-            {activeMode === 'Logic' && <Cpu className="w-3.5 h-3.5 text-white/90" />}
-            {activeMode === 'Duality' && <Sparkles className="w-3.5 h-3.5 text-white/90" />}
-            {activeMode === 'Empathy' && <Brain className="w-3.5 h-3.5 text-white/90" />}
+        <div className="flex items-center gap-2">
+          {/* AI Engine Provider Selector Dropdown */}
+          <div className="relative" ref={providerDropdownRef}>
+            <button
+              onClick={() => {
+                setShowProviderDropdown(v => !v);
+                setShowModeDropdown(false);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
+              style={{
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: showProviderDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
+                backdropFilter: 'blur(12px)',
+              }}
+              title="Select AI Engine"
+            >
+              {activeProvider === 'openrouter' ? <Globe className="w-3.5 h-3.5 text-emerald-400" /> : activeProvider === 'groq' ? <Zap className="w-3.5 h-3.5 text-orange-400" /> : <Sparkles className="w-3.5 h-3.5 text-sky-400" />}
 
-            <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
-              {activeMode}
-            </span>
+              <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
+                {activeProvider === 'openrouter' ? 'OpenRouter' : activeProvider === 'groq' ? 'Groq (Llama 3.3)' : 'Gemini 2.0'}
+              </span>
 
-            <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showModeDropdown ? 'rotate-180' : ''}`} />
-          </button>
+              <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showProviderDropdown ? 'rotate-180' : ''}`} />
+            </button>
 
-          {/* Dark Glass Dropdown Menu — Dynamic direction (Downward before start, Upward during chat) */}
-          <AnimatePresence>
-            {showModeDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: isDropUp ? 8 : -8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: isDropUp ? 6 : -6, scale: 0.95 }}
-                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
-                style={{
-                  background: 'rgba(5, 5, 8, 0.96)',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  backdropFilter: 'blur(24px)',
-                  WebkitBackdropFilter: 'blur(24px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-                }}
-              >
-
-                {[
-                  {
-                    id: 'Logic',
-                    title: 'Logic',
-                    desc: 'Analytical data, code, facts & formulas',
-                    icon: <Cpu className="w-4 h-4 text-white/90 shrink-0" />,
-                  },
-                  {
-                    id: 'Duality',
-                    title: 'Duality',
-                    desc: '50/50 Machine logic & Human empathy',
-                    icon: <Sparkles className="w-4 h-4 text-white/90 shrink-0" />,
-                  },
-                  {
-                    id: 'Empathy',
-                    title: 'Empathy',
-                    desc: 'Emotional intelligence & context',
-                    icon: <Brain className="w-4 h-4 text-white/90 shrink-0" />,
-                  },
-                ].map(item => {
-                  const isActive = activeMode === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onModeChange(item.id);
-                        setShowModeDropdown(false);
-                      }}
-                      className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 transition-all cursor-pointer group relative mb-0.5"
-                      style={{
-                        background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
-                        border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
-                      }}
-                      onMouseEnter={e => {
-                        if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                      }}
-                      onMouseLeave={e => {
-                        if (!isActive) e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <div className="mt-0.5">{item.icon}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                            {item.title}
-                          </span>
-                          {isActive && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
-                          )}
+            {/* Provider Dropdown Menu */}
+            <AnimatePresence>
+              {showProviderDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: isDropUp ? 8 : -8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: isDropUp ? 6 : -6, scale: 0.95 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                  className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
+                  style={{
+                    background: 'rgba(5, 5, 8, 0.96)',
+                    border: '1px solid rgba(255, 255, 255, 0.16)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  {[
+                    {
+                      id: 'gemini',
+                      title: 'Gemini 2.0 Flash',
+                      desc: 'Fast, high precision multimodal intelligence',
+                      icon: <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />,
+                    },
+                    {
+                      id: 'groq',
+                      title: 'Groq (Llama 3.3 70B)',
+                      desc: 'Ultra-fast synthesis powered by Groq Llama 3.3',
+                      icon: <Zap className="w-4 h-4 text-orange-400 shrink-0" />,
+                    },
+                    {
+                      id: 'openrouter',
+                      title: 'OpenRouter (Gemma 4 31B)',
+                      desc: 'Google Gemma 4 31B & 200+ models via OpenRouter',
+                      icon: <Globe className="w-4 h-4 text-emerald-400 shrink-0" />,
+                    },
+                  ].map(item => {
+                    const isActive = activeProvider === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          if (onProviderChange) onProviderChange(item.id);
+                          setShowProviderDropdown(false);
+                        }}
+                        className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 transition-all cursor-pointer group relative mb-0.5"
+                        style={{
+                          background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+                          border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                        }}
+                        onMouseLeave={e => {
+                          if (!isActive) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div className="mt-0.5">{item.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                              {item.title}
+                            </span>
+                            {isActive && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {item.desc}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          {item.desc}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Duality Mode Selector Dropdown — Animated Glass */}
+          <div className="relative" ref={modeDropdownRef}>
+            <motion.button
+              onClick={() => {
+                setShowModeDropdown(v => !v);
+                setShowProviderDropdown(false);
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white transition-all cursor-pointer select-none"
+              style={{
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: showModeDropdown ? '1px solid rgba(255, 255, 255, 0.28)' : '1px solid rgba(255, 255, 255, 0.12)',
+                backdropFilter: 'blur(12px)',
+              }}
+              title="Choose Duality Mode"
+            >
+              {activeMode === 'Logic' && <Cpu className="w-3.5 h-3.5 text-white/90" />}
+              {activeMode === 'Duality' && <Sparkles className="w-3.5 h-3.5 text-white/90" />}
+              {activeMode === 'Empathy' && <Brain className="w-3.5 h-3.5 text-white/90" />}
+              <span style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}>
+                {activeMode}
+              </span>
+              <motion.span
+                animate={{ rotate: showModeDropdown ? 180 : 0 }}
+                transition={{ duration: 0.4, ease: 'easeInOut', type: 'spring' }}
+              >
+                <ChevronDown className="w-3 h-3 text-white/50" />
+              </motion.span>
+            </motion.button>
+
+            {/* Animated Mode Dropdown Menu */}
+            <AnimatePresence>
+              {showModeDropdown && (
+                <motion.div
+                  initial={{ y: isDropUp ? 6 : -6, scale: 0.95, opacity: 0, filter: 'blur(8px)' }}
+                  animate={{ y: 0, scale: 1, opacity: 1, filter: 'blur(0px)' }}
+                  exit={{ y: isDropUp ? 4 : -4, scale: 0.95, opacity: 0, filter: 'blur(8px)' }}
+                  transition={{ duration: 0.5, ease: 'circInOut', type: 'spring' }}
+                  className={`absolute ${isDropUp ? 'bottom-full mb-2.5' : 'top-full mt-2.5'} left-0 z-[150] w-64 p-1.5 rounded-2xl overflow-hidden shadow-2xl`}
+                  style={{
+                    background: 'rgba(5, 5, 8, 0.96)',
+                    border: '1px solid rgba(255, 255, 255, 0.16)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  {[
+                    {
+                      id: 'Logic',
+                      title: 'Logic',
+                      desc: 'Analytical data, code, facts & formulas',
+                      icon: <Cpu className="w-4 h-4 text-white/90 shrink-0" />,
+                    },
+                    {
+                      id: 'Duality',
+                      title: 'Duality',
+                      desc: '50/50 Machine logic & Human empathy',
+                      icon: <Sparkles className="w-4 h-4 text-white/90 shrink-0" />,
+                    },
+                    {
+                      id: 'Empathy',
+                      title: 'Empathy',
+                      desc: 'Emotional intelligence & context',
+                      icon: <Brain className="w-4 h-4 text-white/90 shrink-0" />,
+                    },
+                  ].map((item, index) => {
+                    const isActive = activeMode === item.id;
+                    return (
+                      <motion.button
+                        key={item.id}
+                        initial={{ opacity: 0, x: 10, scale: 0.95, filter: 'blur(8px)' }}
+                        animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, x: 8, scale: 0.95, filter: 'blur(8px)' }}
+                        transition={{ duration: 0.35, delay: index * 0.07, ease: 'easeOut', type: 'spring' }}
+                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          onModeChange(item.id);
+                          setShowModeDropdown(false);
+                        }}
+                        className="w-full text-left p-2.5 rounded-xl flex items-start gap-2.5 cursor-pointer group relative mb-0.5"
+                        style={{
+                          background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+                          border: isActive ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid transparent',
+                        }}
+                      >
+                        <div className="mt-0.5">{item.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-white/95 group-hover:text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                              {item.title}
+                            </span>
+                            {isActive && (
+                              <motion.div
+                                layoutId="mode-active-dot"
+                                className="w-1.5 h-1.5 rounded-full bg-white"
+                                style={{ boxShadow: '0 0 8px #ffffff' }}
+                              />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-white/40 group-hover:text-white/65 leading-tight mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {item.desc}
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -845,8 +967,25 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
                 <span className="flex items-center gap-1 text-white/85">
                   <Cpu className="w-3 h-3 text-white/60" /> Machine Logic ({msg.logicRatio ?? 50}%)
                 </span>
-                <span className="text-white/30 text-[10px] uppercase font-bold tracking-wider">
-                  {msg.modeName || 'Synaptic Duality'}
+                <span className="flex items-center gap-1.5 text-white/40 text-[10px] uppercase font-bold tracking-wider">
+                  {msg.provider === 'openrouter' ? (
+                    <span className="flex items-center gap-1 text-emerald-400/90 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-md">
+                      <Globe className="w-2.5 h-2.5" /> OpenRouter
+                    </span>
+                  ) : msg.provider === 'groq' ? (
+                    <span className="flex items-center gap-1 text-orange-400/90 bg-orange-400/10 border border-orange-400/20 px-1.5 py-0.5 rounded-md">
+                      <Zap className="w-2.5 h-2.5" /> Groq
+                    </span>
+                  ) : msg.provider === 'grok' ? (
+                    <span className="flex items-center gap-1 text-amber-400/90 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-md">
+                      <Zap className="w-2.5 h-2.5" /> Grok
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-sky-400/90 bg-sky-400/10 border border-sky-400/20 px-1.5 py-0.5 rounded-md">
+                      <Sparkles className="w-2.5 h-2.5" /> Gemini
+                    </span>
+                  )}
+                  <span>• {msg.modeName || 'Synaptic Duality'}</span>
                 </span>
                 <span className="flex items-center gap-1 text-white/85">
                   Human Context ({msg.empathyRatio ?? 50}%) <Brain className="w-3 h-3 text-white/60" />
@@ -1018,6 +1157,7 @@ export default function ConversationPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeMode, setActiveMode] = useState('Duality');
+  const [activeProvider, setActiveProvider] = useState('gemini');
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1031,7 +1171,7 @@ export default function ConversationPage() {
 
     const startTime = Date.now();
 
-    // Format prompt text for Gemini if attachments exist
+    // Format prompt text for Gemini/Grok if attachments exist
     let promptForAI = rawText;
     if (attachments && attachments.length > 0) {
       const attNames = attachments.map(a => `${a.name} (${a.size})`).join(', ');
@@ -1050,7 +1190,7 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(promptForAI, messages, activeMode);
+      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider);
 
       const elapsed = Date.now() - startTime;
       const minDelay = 1800;
@@ -1068,27 +1208,39 @@ export default function ConversationPage() {
         logicRatio: response.logicRatio,
         empathyRatio: response.empathyRatio,
         modeName: response.modeName || activeMode,
+        provider: response.provider || activeProvider,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
     } catch (err) {
       console.error('[MindBot] Send error:', err);
       const elapsed = Date.now() - startTime;
-      if (elapsed < 1800) await new Promise(r => setTimeout(r, 1800 - elapsed));
+      if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed));
       setIsTyping(false);
+
+      // Determine a helpful error message based on the error type
+      const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('API_KEY') || err?.message?.includes('INVALID_ARGUMENT') || err?.message?.includes('API key');
+      const providerLabel = activeProvider === 'groq' ? 'Groq' : activeProvider === 'grok' ? 'Grok (xAI)' : 'Gemini';
+      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
+
+      const errorText = isAuthError
+        ? `⚠️ API key error — the ${providerLabel} API key in your .env file appears invalid or missing. Please add a valid \`${envKey}\` and restart the dev server.`
+        : `⚠️ Something went wrong connecting to ${providerLabel}. Check the browser console for details (F12 → Console). Error: ${err?.message || 'Unknown error'}`;
+
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'synaptica',
-        text: `When choosing between Science, Commerce, or Arts, evaluate your core subject enjoyment against your long-term career goals. What subjects make you lose track of time?`,
-        aiReasoning: 'Academic Aptitude: Match subject strengths to target career entry requirements.',
-        humanInsight: 'What subject makes you genuinely curious to learn more — not just what seems safe?',
+        text: errorText,
+        provider: activeProvider,
+        isError: true,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
     }
   };
 
-  // Replaces a specific AI message with a fresh Gemini response to the same prompt
+
+  // Replaces a specific AI message with a fresh AI response to the same prompt
   const regenerateMessage = async (aiMsgId, userPrompt, historyBeforeMsg) => {
     if (isTyping) return;
 
@@ -1098,7 +1250,7 @@ export default function ConversationPage() {
 
     const startTime = Date.now();
     try {
-      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg);
+      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg, activeMode, activeProvider);
       const elapsed = Date.now() - startTime;
       if (elapsed < 1200) await new Promise(r => setTimeout(r, 1200 - elapsed));
 
@@ -1109,13 +1261,32 @@ export default function ConversationPage() {
         text: response.text,
         aiReasoning: response.aiReasoning,
         humanInsight: response.humanInsight,
+        logicRatio: response.logicRatio,
+        empathyRatio: response.empathyRatio,
+        modeName: response.modeName || activeMode,
+        provider: response.provider || activeProvider,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
-    } catch {
+    } catch (err) {
+      console.error('[MindBot] Regenerate error:', err);
       setIsTyping(false);
+      const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('API key') || err?.message?.includes('INVALID_ARGUMENT');
+      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'synaptica',
+        text: isAuthError
+          ? `⚠️ API key error — please check your \`${envKey}\` in .env.`
+          : `⚠️ Regeneration failed. Check the browser console (F12) for details.`,
+        provider: activeProvider,
+        isError: true,
+        thinkingMs: Date.now() - startTime,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
     }
   };
+
 
   const resetSession = () => {
     setMessages([]);
@@ -1161,6 +1332,7 @@ export default function ConversationPage() {
                   value={inputVal} onChange={setInputVal}
                   onSend={sendMessage} large
                   activeMode={activeMode} onModeChange={setActiveMode}
+                  activeProvider={activeProvider} onProviderChange={setActiveProvider}
                 />
               </motion.div>
             </motion.div>
@@ -1200,6 +1372,7 @@ export default function ConversationPage() {
                     value={inputVal} onChange={setInputVal}
                     onSend={sendMessage}
                     activeMode={activeMode} onModeChange={setActiveMode}
+                    activeProvider={activeProvider} onProviderChange={setActiveProvider}
                   />
                 </div>
               </div>
