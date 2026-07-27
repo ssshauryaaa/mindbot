@@ -321,6 +321,10 @@ button, a, [role="button"] {
 .mobile-sidebar {
   display: none;
 }
+/* Global default padding for input box to keep it off the screen edge on desktop */
+.input-safe-area {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+}
 
 @media (max-width: 639px) {
   /* Show mobile floating sidebar dock, hide desktop vertical sidebar */
@@ -336,6 +340,17 @@ button, a, [role="button"] {
   /* Input box safe area at bottom */
   .input-safe-area {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  /* When the dock is showing, push input up above it */
+  .chat-has-dock.input-safe-area,
+  .chat-has-dock .input-safe-area {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--dock-height, 0px) + 102px); /* 86px offset + 16px extra space */
+  }
+
+  /* When the dock is showing, push messages container above it */
+  .messages-scroll-container {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--dock-height, 0px) + 146px);
   }
 
   /* Hide fine scrollbars on touch devices */

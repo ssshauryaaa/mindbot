@@ -100,6 +100,19 @@ function LogoMark({ size = 48 }) {
 ════════════════════════════════════════════════════════════════ */
 function Sidebar({ onNavigate, hasStarted = false }) {
   const navigate = useNavigate();
+  const dockRef = useRef(null);
+
+  useEffect(() => {
+    if (!dockRef.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty(
+        '--dock-height',
+        `${entry.contentRect.height}px`
+      );
+    });
+    observer.observe(dockRef.current);
+    return () => observer.disconnect();
+  }, []);
   const dockItems = [
     { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
     { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => onNavigate('history') },
@@ -117,6 +130,7 @@ function Sidebar({ onNavigate, hasStarted = false }) {
 
       {/* Mobile — horizontal floating glass capsule dock at bottom center */}
       <div
+        ref={dockRef}
         className={`mobile-sidebar fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 md:hidden ${hasStarted
           ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)]'
           : 'bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]'
@@ -1447,16 +1461,11 @@ export default function ConversationPage() {
               className="flex-1 flex flex-col overflow-hidden"
             >
 
-
-
-
-
               <div className="relative flex-1 min-h-0">
                 <div
-                  className="h-full overflow-y-auto"
+                  className="h-full overflow-y-auto messages-scroll-container"
                   style={{
                     paddingTop: '2.5rem',
-                    paddingBottom: '11rem', // slightly taller than the fade zone below
                   }}
                 >
                   <div className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6">
@@ -1511,8 +1520,7 @@ export default function ConversationPage() {
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area"
-                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
+                className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area chat-has-dock"
               >
                 <div className="w-full max-w-2xl pointer-events-auto">
                   <InputBox
