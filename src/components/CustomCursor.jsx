@@ -69,23 +69,6 @@ export default function CustomCursor() {
         animate={{ scale: isHovered ? 1.4 : 1 }}
         transition={{ duration: 0.12 }}
       />
-
-      {/* Lagging white glow aura — soft and ambient */}
-      <motion.div
-        className="fixed top-0 left-0 pointer-events-none z-[9998] rounded-full"
-        style={{
-          x: glowX, y: glowY,
-          translateX: '-50%', translateY: '-50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)',
-          filter: 'blur(4px)',
-        }}
-        animate={{
-          width:  isHovered ? 56 : 38,
-          height: isHovered ? 56 : 38,
-          opacity: isHovered ? 1.0 : 0.70,
-        }}
-        transition={{ duration: 0.18 }}
-      />
     </>
   );
 }
