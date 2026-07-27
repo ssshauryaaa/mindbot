@@ -132,7 +132,7 @@ function Sidebar({ onNavigate, hasStarted = false }) {
       <div
         ref={dockRef}
         className={`mobile-sidebar fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 md:hidden ${hasStarted
-          ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)]'
+          ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+46px)]'
           : 'bottom-[calc(env(safe-area-inset-bottom,0px)+16px)]'
           }`}
       >
@@ -1079,6 +1079,17 @@ export default function ConversationPage() {
   const [dualityRatio, setDualityRatio] = useState(50); // 0-100, logic%
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
 
+  const inputWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!inputWrapRef.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty('--input-height', `${entry.contentRect.height}px`);
+    });
+    observer.observe(inputWrapRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   // Persistent session storage
   const [sessions, setSessions] = useState(() => {
     try {
@@ -1468,7 +1479,10 @@ export default function ConversationPage() {
                     paddingTop: '2.5rem',
                   }}
                 >
-                  <div className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6">
+                  <div
+                    className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6"
+                    style={{ paddingBottom: 'calc(var(--input-height, 140px) + 2rem)' }}
+                  >
                     {messages.map((msg, idx) => {
                       if (msg.sender === 'user') return <UserMessage key={msg.id} msg={msg} />;
                       const prevUserMsg = [...messages].slice(0, idx).reverse().find(m => m.sender === 'user');
@@ -1517,10 +1531,11 @@ export default function ConversationPage() {
 
               {/* Floating input — with safe-area bottom for iOS */}
               <motion.div
+                ref={inputWrapRef}
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area chat-has-dock"
+                className="absolute bottom-0 left-0 right-0 flex flex-col items-center px-3 sm:px-4 pt-2 pointer-events-none z-20 input-safe-area chat-has-dock  translate-y-4 sm:translate-y-0"
               >
                 <div className="w-full max-w-2xl pointer-events-auto">
                   <InputBox
