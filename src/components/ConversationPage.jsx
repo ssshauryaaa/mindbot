@@ -21,6 +21,7 @@ import HistoryDrawer from "./HistoryDrawer";
 import DualitySlider from "./DualitySlider";
 import SuggestionChips from "./SuggestionChips";
 import { analyzeSentiment } from "../services/sentiment";
+import { CodeBlock } from './ui/code-block';
 
 const PAGE_BG = 'var(--bg-base)'; // resolves to #020203
 
@@ -189,6 +190,46 @@ function useTypewriter(texts, { typeSpeed = 55, deleteSpeed = 30, pauseMs = 1800
 ════════════════════════════════════════════════════════════════ */
 function renderMarkdown(text) {
   if (!text) return null;
+
+  const elements = [];
+  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match;
+  let blockIndex = 0;
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const [fullMatch, lang, code] = match;
+    const textBefore = text.slice(lastIndex, match.index);
+
+    if (textBefore.trim()) {
+      elements.push(...renderMarkdownLines(textBefore, `pre-${blockIndex}`));
+    }
+
+    elements.push(
+      <div key={`code-${blockIndex}`} className="my-3">
+        <CodeBlock
+          language={lang || 'text'}
+          filename={lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code'}
+          code={code.replace(/\n$/, '')}
+        />
+      </div>
+    );
+
+    lastIndex = match.index + fullMatch.length;
+    blockIndex++;
+  }
+
+  const remaining = text.slice(lastIndex);
+  if (remaining.trim()) {
+    elements.push(...renderMarkdownLines(remaining, `post-${blockIndex}`));
+  }
+
+  return elements;
+}
+
+// Handles H1/H2/H3/bullets/numbered lists/paragraphs for a chunk of plain text.
+// keyPrefix keeps React keys unique across multiple chunks split around code blocks.
+function renderMarkdownLines(text, keyPrefix) {
   const lines = text.split('\n');
   const elements = [];
   let i = 0;
@@ -199,7 +240,7 @@ function renderMarkdown(text) {
     // H1
     if (line.startsWith('# ')) {
       elements.push(
-        <h1 key={i} className="text-2xl font-semibold text-white/95 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.02em' }}>
+        <h1 key={`${keyPrefix}-${i}`} className="text-2xl font-semibold text-white/95 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.02em' }}>
           {parseBold(line.slice(2))}
         </h1>
       );
@@ -207,7 +248,7 @@ function renderMarkdown(text) {
     // H2
     else if (line.startsWith('## ')) {
       elements.push(
-        <h2 key={i} className="text-lg font-semibold text-white/90 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.01em' }}>
+        <h2 key={`${keyPrefix}-${i}`} className="text-lg font-semibold text-white/90 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.01em' }}>
           {parseBold(line.slice(3))}
         </h2>
       );
@@ -215,7 +256,7 @@ function renderMarkdown(text) {
     // H3
     else if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={i} className="text-base font-semibold text-white/85 mt-4 mb-1.5 first:mt-0">
+        <h3 key={`${keyPrefix}-${i}`} className="text-base font-semibold text-white/85 mt-4 mb-1.5 first:mt-0">
           {parseBold(line.slice(4))}
         </h3>
       );
@@ -225,14 +266,14 @@ function renderMarkdown(text) {
       const bullets = [];
       while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('• '))) {
         bullets.push(
-          <li key={i} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
+          <li key={`${keyPrefix}-${i}`} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
             <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
             <span>{parseBold(lines[i].slice(2))}</span>
           </li>
         );
         i++;
       }
-      elements.push(<ul key={`ul-${i}`} className="space-y-2 my-2">{bullets}</ul>);
+      elements.push(<ul key={`${keyPrefix}-ul-${i}`} className="space-y-2 my-2">{bullets}</ul>);
       continue;
     }
     // Numbered list
@@ -241,7 +282,7 @@ function renderMarkdown(text) {
       let num = 1;
       while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
         items.push(
-          <li key={i} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
+          <li key={`${keyPrefix}-${i}`} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
             <span className="text-white/35 text-sm tabular-nums shrink-0 min-w-[1.2rem] text-right">{num}.</span>
             <span>{parseBold(lines[i].replace(/^\d+\.\s/, ''))}</span>
           </li>
@@ -249,7 +290,7 @@ function renderMarkdown(text) {
         i++;
         num++;
       }
-      elements.push(<ol key={`ol-${i}`} className="space-y-2 my-2">{items}</ol>);
+      elements.push(<ol key={`${keyPrefix}-ol-${i}`} className="space-y-2 my-2">{items}</ol>);
       continue;
     }
     // Empty line
@@ -259,7 +300,7 @@ function renderMarkdown(text) {
     // Normal paragraph
     else {
       elements.push(
-        <p key={i} className="text-white/80 text-[15px] leading-relaxed">
+        <p key={`${keyPrefix}-${i}`} className="text-white/80 text-[15px] leading-relaxed">
           {parseBold(line)}
         </p>
       );

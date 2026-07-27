@@ -2,7 +2,7 @@ import os
 from google import genai
 
 client = genai.Client(
-    api_key='AQ.Ab8RN6J80Nm8XH4fH9Mm4P-CHjvd0BRl79rJkuJvrQFAXZVXCA'
+    api_key='AQ.Ab8RN6LypBCjnQOAB-4sXRnMvcPm4A1QI6F7mA0Wj-x8Q9cq-w'
 )
 
 
