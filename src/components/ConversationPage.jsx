@@ -20,6 +20,9 @@ import UserMessage from "./UserMessage";
 import HistoryDrawer from "./HistoryDrawer";
 import DualitySlider from "./DualitySlider";
 import SuggestionChips from "./SuggestionChips";
+import { analyzeSentiment } from "../services/sentiment";
+
+const PAGE_BG = 'var(--bg-base)'; // resolves to #020203
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -1002,27 +1005,40 @@ function ActionBtn({ children, title, onClick, active }) {
 /* ════════════════════════════════════════════════════════════════
    9. TYPING INDICATOR
 ════════════════════════════════════════════════════════════════ */
-function TypingIndicator() {
+function TypingIndicator({ sentiment }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-2"
     >
-      <div
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/35 w-fit"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-      >
-        <Clock className="w-3 h-3" />
-        <span style={{ fontFamily: 'Inter, sans-serif' }}>Thinking...</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/35 w-fit"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <Clock className="w-3 h-3" />
+          <span style={{ fontFamily: 'Inter, sans-serif' }}>Thinking...</span>
+        </div>
+
+        {sentiment?.shiftDescription && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.88 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono text-emerald-300/90 bg-emerald-400/10 border border-emerald-400/25 shadow-[0_0_12px_rgba(52,211,153,0.15)]"
+          >
+            <span>{sentiment.shiftDescription}</span>
+          </motion.div>
+        )}
       </div>
+
       <AITextLoading
         className="text-[15px] text-white/50 leading-relaxed"
         interval={1500}
         texts={[
           "Synthesizing response...",
-          "Analyzing context...",
-          "Processing thoughts...",
+          "Analyzing context & tone...",
+          "Processing dual-stream thoughts...",
           "Almost ready...",
         ]}
       />
@@ -1154,6 +1170,17 @@ export default function ConversationPage() {
 
     const startTime = Date.now();
 
+    // Perform Sentiment Analysis on User Input
+    const sentiment = analyzeSentiment(rawText);
+
+    // Auto-adapt Duality Ratio based on detected tone
+    let effectiveRatio = dualityRatio;
+    if (sentiment.toneShift === 'empathy') {
+      effectiveRatio = Math.max(15, Math.min(30, dualityRatio - 35));
+    } else if (sentiment.toneShift === 'logic') {
+      effectiveRatio = Math.min(85, Math.max(70, dualityRatio + 35));
+    }
+
     // Format prompt text for Gemini/Grok if attachments exist
     let promptForAI = rawText;
     if (attachments && attachments.length > 0) {
@@ -1163,17 +1190,21 @@ export default function ConversationPage() {
         : `[Attached File(s): ${attNames}] Please analyze these files.`;
     }
 
-    setMessages(prev => [...prev, {
+    // Build user message with sentiment badge metadata
+    const userMsgObj = {
       id: Date.now(),
       sender: 'user',
       text: rawText,
+      sentiment: sentiment,
       attachments: attachments,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }]);
+    };
+
+    setMessages(prev => [...prev, userMsgObj]);
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider, undefined, dualityRatio);
+      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider, undefined, effectiveRatio);
 
       const elapsed = Date.now() - startTime;
       const minDelay = 1800;
@@ -1415,24 +1446,64 @@ export default function ConversationPage() {
               className="flex-1 flex flex-col overflow-hidden"
             >
 
-              {/* Message thread */}
-              <div
-                className="flex-1 overflow-y-auto"
-                style={{ paddingTop: '2.5rem', paddingBottom: '10rem' }}
-              >
-                <div className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6">
-                  {messages.map((msg, idx) => {
-                    if (msg.sender === 'user') return <UserMessage key={msg.id} msg={msg} />;
-                    const prevUserMsg = [...messages].slice(0, idx).reverse().find(m => m.sender === 'user');
-                    const handleRegenerate = prevUserMsg
-                      ? () => regenerateMessage(msg.id, prevUserMsg.text, messages.slice(0, idx))
-                      : undefined;
-                    return <AIMessage key={msg.id} msg={msg} thinkingMs={msg.thinkingMs} onRegenerate={handleRegenerate} />;
-                  })}
-                  {isTyping && <TypingIndicator />}
-                  <div ref={chatEndRef} />
+
+
+
+
+              <div className="relative flex-1 min-h-0">
+                <div
+                  className="h-full overflow-y-auto"
+                  style={{
+                    paddingTop: '2.5rem',
+                    paddingBottom: '11rem', // slightly taller than the fade zone below
+                  }}
+                >
+                  <div className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6">
+                    {messages.map((msg, idx) => {
+                      if (msg.sender === 'user') return <UserMessage key={msg.id} msg={msg} />;
+                      const prevUserMsg = [...messages].slice(0, idx).reverse().find(m => m.sender === 'user');
+                      const handleRegenerate = prevUserMsg
+                        ? () => regenerateMessage(msg.id, prevUserMsg.text, messages.slice(0, idx))
+                        : undefined;
+                      return <AIMessage key={msg.id} msg={msg} thinkingMs={msg.thinkingMs} onRegenerate={handleRegenerate} />;
+                    })}
+                    {isTyping && <TypingIndicator sentiment={messages.find(m => m.sender === 'user' && m.id === messages[messages.length - 1]?.id)?.sentiment} />}
+                    <div ref={chatEndRef} />
+                  </div>
                 </div>
+
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10"
+                  style={{
+                    height: '12rem',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    maskImage: 'linear-gradient(to bottom, transparent 0%, black 55%, black 100%)',
+                    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 55%, black 100%)',
+                  }}
+                />
+
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10"
+                  style={{
+                    height: '12rem',
+                    background: `linear-gradient(to bottom, transparent 0%, ${PAGE_BG} 45%, ${PAGE_BG} 100%)`,
+                  }}
+                />
               </div>
+
+
+              {/* Smooth dark gradient backdrop behind floating input area */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-44 pointer-events-none z-10 select-none"
+                style={{
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0) 100%)',
+                  backdropFilter: 'blur(4px)',
+                  WebkitBackdropFilter: 'blur(4px)',
+                }}
+              />
 
               {/* Floating input — with safe-area bottom for iOS */}
               <motion.div

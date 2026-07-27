@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, FileSpreadsheet, FileCode, Copy, Check, X, Download } from "lucide-react";
+import { FileText, FileSpreadsheet, FileCode, Copy, Check, X, Download, HeartHandshake, Cpu, Search, Sparkles, MessageSquare } from "lucide-react";
+
+function SentimentIcon({ type, className = "w-3 h-3" }) {
+    if (type === "stressed") return <HeartHandshake className={className} />;
+    if (type === "technical") return <Cpu className={className} />;
+    if (type === "curious") return <Search className={className} />;
+    if (type === "creative") return <Sparkles className={className} />;
+    return <MessageSquare className={className} />;
+}
 
 /* ────────────────────────────────────────────────────────────────
    UserMessage — premium rework
@@ -227,7 +235,7 @@ function UserMessage({ msg }) {
             )}
 
             {msg.text && (
-                <div className="group relative max-w-[min(28rem,calc(100vw-2rem))]">
+                <div className="group relative max-w-[min(28rem,calc(100vw-2rem))] flex flex-col items-end gap-1.5">
                     <motion.div
                         whileHover={{ y: -1 }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -242,6 +250,45 @@ function UserMessage({ msg }) {
                     >
                         {msg.text}
                     </motion.div>
+
+                    {/* Sentiment Analysis Badge — positioned UNDER the user message */}
+                    {msg.sentiment && msg.sentiment.type !== 'neutral' && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.85, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wide border select-none shadow-sm backdrop-blur-md self-end"
+                            style={{
+                                background:
+                                    msg.sentiment.color === 'rose'
+                                        ? 'rgba(244,63,94,0.12)'
+                                        : msg.sentiment.color === 'violet'
+                                            ? 'rgba(168,85,247,0.12)'
+                                            : msg.sentiment.color === 'sky'
+                                                ? 'rgba(56,189,248,0.12)'
+                                                : 'rgba(251,191,36,0.12)',
+                                borderColor:
+                                    msg.sentiment.color === 'rose'
+                                        ? 'rgba(244,63,94,0.30)'
+                                        : msg.sentiment.color === 'violet'
+                                            ? 'rgba(168,85,247,0.30)'
+                                            : msg.sentiment.color === 'sky'
+                                                ? 'rgba(56,189,248,0.30)'
+                                                : 'rgba(251,191,36,0.30)',
+                                color:
+                                    msg.sentiment.color === 'rose'
+                                        ? '#fda4af'
+                                        : msg.sentiment.color === 'violet'
+                                            ? '#e9d5ff'
+                                            : msg.sentiment.color === 'sky'
+                                                ? '#bae6fd'
+                                                : '#fef08a',
+                            }}
+                        >
+                            <SentimentIcon type={msg.sentiment.type} className="w-3 h-3" />
+                            <span className="font-semibold">{msg.sentiment.label}</span>
+                        </motion.div>
+                    )}
 
                     <motion.button
                         initial={false}
