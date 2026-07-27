@@ -8,7 +8,7 @@ import {
   Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
   Download, Clock, X, FileText, Image as ImageIcon, File,
-  Trash2, Search,
+  Trash2, Search, Volume2, VolumeX,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
@@ -529,35 +529,89 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
     ingestFiles(e.dataTransfer?.files);
   };
 
+  const recognitionRef = useRef(null);
+  const isListeningRef = useRef(false);
+  const [interimText, setInterimText] = useState('');
+
   const handleVoiceDictation = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice dictation is not supported in this browser.");
+      setToast({ id: Date.now(), message: 'Voice dictation is not supported in this browser (use Chrome/Edge).' });
       return;
     }
 
     if (isListening) {
+      isListeningRef.current = false;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { }
+      }
       setIsListening(false);
+      setInterimText('');
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false; // Fast per-phrase commit
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+      isListeningRef.current = true;
+      setIsListening(true);
+      setInterimText('');
 
-    recognition.onresult = (e) => {
-      const transcript = Array.from(e.results)
-        .map(result => result[0].transcript)
-        .join('');
-      onChange(transcript);
-    };
+      recognition.onstart = () => {
+        setToast({ id: Date.now(), message: '🎙️ Listening... Speak now!' });
+      };
 
-    recognition.start();
+      recognition.onend = () => {
+        if (isListeningRef.current) {
+          try { recognition.start(); } catch { }
+        } else {
+          setIsListening(false);
+          setInterimText('');
+          recognitionRef.current = null;
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('[MindBot] Speech recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          isListeningRef.current = false;
+          setIsListening(false);
+          setInterimText('');
+          setToast({ id: Date.now(), message: '⚠️ Microphone access denied in browser.' });
+        } else if (event.error === 'network') {
+          isListeningRef.current = false;
+          setIsListening(false);
+          setInterimText('');
+          setToast({ id: Date.now(), message: '⚠️ Speech recognition requires internet connection.' });
+        }
+      };
+
+      recognition.onresult = (e) => {
+        let transcript = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript;
+        }
+        if (transcript) {
+          setInterimText(transcript);
+          // When a phrase segment finishes, commit it directly to the textarea
+          if (e.results[e.resultIndex]?.isFinal) {
+            const finalPhrase = transcript.trim();
+            onChange(prev => (typeof prev === 'string' && prev ? prev.trim() + ' ' : '') + finalPhrase);
+            setInterimText('');
+          }
+        }
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('[MindBot] Speech start error:', err);
+      setIsListening(false);
+      isListeningRef.current = false;
+    }
   };
 
   const handleSend = () => {
@@ -583,6 +637,10 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
       onDrop={handleDrop}
     >
       <style>{`
+        @keyframes tts-wave {
+          0%, 100% { transform: scaleY(0.3); }
+          50% { transform: scaleY(1); }
+        }
         @keyframes ib-wave {
           0%, 100% { transform: scaleY(0.35); }
           50% { transform: scaleY(1); }
@@ -786,8 +844,8 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
                 />
               ))}
             </div>
-            <span className="text-[11px] text-red-300/90 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Listening…
+            <span className="text-[11px] text-red-300/90 font-medium truncate max-w-md" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Listening… {interimText ? <span className="text-white/80 font-normal italic ml-1">"{interimText}"</span> : <span className="opacity-60 ml-1">Speak now...</span>}
             </span>
           </motion.div>
         )}
@@ -799,6 +857,20 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
         </div>
 
         <div className="flex items-center gap-2">
+          <motion.button
+            type="button"
+            onClick={handleVoiceDictation}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            title={isListening ? "Stop Listening" : "Voice Dictation"}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+              isListening
+                ? 'bg-red-500/20 border border-red-500/50 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                : 'bg-white/5 hover:bg-white/12 border border-white/10 text-white/70 hover:text-white'
+            }`}
+          >
+            <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse text-red-400' : ''}`} />
+          </motion.button>
           <FloatingActionButton
             size="sm"
             label="Quick Tools"
@@ -883,6 +955,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
   const [liked, setLiked] = useState(null);
   const [showMore, setShowMore] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const moreRef = useRef(null);
 
   // Close dropdown on outside click
@@ -898,6 +971,55 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // ── Text-to-Speech ──────────────────────────────────────────────
+  const handleSpeak = () => {
+    if (!window.speechSynthesis) return;
+
+    // If already speaking, stop
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    // Strip markdown formatting before reading aloud
+    const cleanText = (msg.text || '')
+      .replace(/```[\s\S]*?```/g, 'code block omitted.')
+      .replace(/#{1,6}\s?/g, '')
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/[-•]\s/g, ', ')
+      .replace(/\n+/g, ' ')
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+    utterance.volume = 1;
+
+    // Prefer a natural-sounding voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.toLowerCase().includes('google') ||
+      v.name.toLowerCase().includes('natural') ||
+      v.name.toLowerCase().includes('neural')
+    ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.cancel(); // clear any previous queue
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Stop speech if the component unmounts
+  useEffect(() => {
+    return () => { if (isSpeaking) window.speechSynthesis?.cancel(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const shareResponse = async () => {
     const shareData = { title: 'Synaptica Response', text: msg.text };
@@ -994,6 +1116,55 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
           <ActionBtn title="Regenerate" onClick={handleRegenerate} spinning={isRegenerating}>
             <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
           </ActionBtn>
+
+          {/* ── Text-to-Speech button ── */}
+          {!msg.isError && (
+            <button
+              onClick={handleSpeak}
+              title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+              className="relative w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer overflow-hidden"
+              style={{
+                color: isSpeaking ? '#a78bfa' : 'rgba(255,255,255,0.28)',
+                background: isSpeaking ? 'rgba(167,139,250,0.12)' : 'transparent',
+                border: isSpeaking ? '1px solid rgba(167,139,250,0.3)' : '1px solid transparent',
+              }}
+              onMouseEnter={e => {
+                if (!isSpeaking) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isSpeaking) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.28)';
+                }
+              }}
+            >
+              {isSpeaking ? (
+                /* Animated waveform bars while speaking */
+                <span className="flex items-end gap-[1.5px] h-3.5">
+                  {[0, 1, 2, 3].map(i => (
+                    <span
+                      key={i}
+                      style={{
+                        display: 'inline-block',
+                        width: 2,
+                        borderRadius: 2,
+                        background: '#a78bfa',
+                        height: '100%',
+                        animation: 'tts-wave 0.8s ease-in-out infinite',
+                        animationDelay: `${i * 0.13}s`,
+                        transformOrigin: 'bottom',
+                      }}
+                    />
+                  ))}
+                </span>
+              ) : (
+                <Volume2 className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Right actions */}
