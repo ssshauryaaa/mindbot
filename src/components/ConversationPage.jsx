@@ -117,7 +117,7 @@ function Sidebar({ onNavigate, hasStarted = false }) {
     { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
     { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => onNavigate('history') },
     { title: 'Landing Page', icon: <Compass className="h-full w-full" />, onClick: () => navigate('/landing') },
-    { title: 'All Tools', icon: <LayoutGrid className="h-full w-full" />, onClick: () => { } },
+    { title: 'How It Works', icon: <Sparkles className="h-full w-full" />, onClick: () => navigate('/landing#how-it-works') },
     { title: 'More', icon: <MoreHorizontal className="h-full w-full" />, onClick: () => { } },
   ];
 

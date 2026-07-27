@@ -7,8 +7,17 @@ import Mannequin from './Mannequin';
 import { Signature } from './Signature';
 import { LiquidMetalButton } from './ui/liquid-metal-button';
 import HowItWorks from './HowItWorks';
+import { useLocation } from 'react-router-dom';
 
 export default function LandingPage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#how-it-works') {
+      document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash]);
+
   const navigate = useNavigate();
   const [animating, setAnimating] = useState(false);
   const pointer = useRef({ x: 0, y: 0 });

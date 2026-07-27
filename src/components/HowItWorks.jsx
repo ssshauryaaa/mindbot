@@ -456,6 +456,7 @@ export default function HowItWorks() {
   return (
     <section
       ref={sectionRef}
+      id="how-it-works"
       className="relative w-full overflow-x-hidden"
       style={{ background: 'var(--bg-base, #050506)' }}
     >
