@@ -115,10 +115,10 @@ export default function LandingPage() {
           }}
         >
           {/* Top Section — Signature Logo, moved down a bit */}
-          <div className="w-full flex justify-center pt-10 sm:pt-20 pointer-events-auto">
+          <div className="w-full flex justify-center pt-10 sm:pt-20 pointer-events-auto translate-y-20">
             <Signature
-              text="Mindbot"
-              fontSize={isMobile ? 52 : 120}
+              text="PyroBot"
+              fontSize={isMobile ? 52 : 110}
               color="#ffffff"
               duration={2.5}
               fontUrl="/LastoriaBoldRegular.otf"
@@ -167,7 +167,7 @@ export default function LandingPage() {
             transition: 'opacity 0.5s ease',
           }}
         >
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto translate-y-47">
             <LiquidMetalButton label="Start for Free" onClick={handleStart} />
           </div>
         </div>
