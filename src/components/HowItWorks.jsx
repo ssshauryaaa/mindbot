@@ -299,7 +299,7 @@ function StepRow({ step, index }) {
 
   return (
     <div
-      className={`relative flex w-full min-h-[360px] sm:min-h-[300px] items-center py-8 sm:py-10 ${isLeft ? 'justify-start' : 'justify-end'
+      className={`relative flex w-full min-h-[360px] sm:min-h-[300px] items-center py-8 sm:py-10 justify-start ${isLeft ? 'sm:justify-start' : 'sm:justify-end'
         }`}
     >
       <ConnectorStub index={index} total={STEPS.length} isLeft={isLeft} />
@@ -309,7 +309,7 @@ function StepRow({ step, index }) {
         whileInView={{ opacity: 1, x: 0, y: 0 }}
         viewport={{ once: true, amount: 0.35 }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full sm:w-[42%]"
+        className="w-full pl-16 sm:pl-0 sm:w-[42%]"
       >
         <CometCard rotateDepth={10} translateDepth={6} className="w-full">
           <div
@@ -456,7 +456,7 @@ export default function HowItWorks() {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full"
+      className="relative w-full overflow-x-hidden"
       style={{ background: 'var(--bg-base, #050506)' }}
     >
       {/* Fade from hero */}
@@ -502,7 +502,7 @@ export default function HowItWorks() {
         />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5 sm:px-8 lg:px-6 pt-20 pb-28">
+      <div className="relative z-10 max-w-5xl mx-auto px-5 sm:px-8 lg:px-6 pt-14 sm:pt-20 pb-16 sm:pb-28">
 
         {/* ── Header ── */}
         <motion.div
