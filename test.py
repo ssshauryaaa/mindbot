@@ -1,16 +1,14 @@
-from openai import OpenAI
+import os
+from google import genai
 
-client = OpenAI(
-    api_key="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",
-    base_url="https://openrouter.ai/api/v1",
+client = genai.Client(
+    api_key='AQ.Ab8RN6J80Nm8XH4fH9Mm4P-CHjvd0BRl79rJkuJvrQFAXZVXCA'
 )
 
-response = client.chat.completions.create(
-    model="openrouter/free",
-    messages=[
-        {"role": "user", "content": "Hello"}
-    ],
+
+response = client.models.generate_content(
+    model="models/gemini-3.6-flash",
+    contents="hey, how are you"
 )
 
-print("Model used:", response.model)
-print(response.choices[0].message.content)
+print(response.text)

@@ -74,7 +74,7 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
     });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'models/gemini-3.6-flash',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_BASE + modeInstruction,
         temperature: activeMode === 'Pure Logic' ? 0.35 : activeMode === 'Human Empathy' ? 0.85 : 0.7,

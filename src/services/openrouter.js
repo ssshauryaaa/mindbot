@@ -32,18 +32,17 @@ Rules:
 
 /**
  * Priority-ordered list of free OpenRouter models to try.
- * Skips models that return 429 (rate-limited) or 404 (unavailable) automatically.
- * Updated from live OpenRouter API — all confirmed available as of July 2026.
+ * Uses OpenRouter's official openrouter/free dynamic model router first,
+ * followed by confirmed open-source free models.
  */
 const FREE_MODEL_CHAIN = [
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'nvidia/nemotron-3-nano-30b-a3b:free',
-  'google/gemma-4-31b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'openai/gpt-oss-20b:free',
-  'poolside/laguna-m.1:free',
-  'inclusionai/ling-3.0-flash:free',
-  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'openrouter/free',
+  'openrouter/auto',
+  'google/gemma-2-9b-it:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+  'deepseek/deepseek-r1:free',
 ];
 
 /**
@@ -52,7 +51,7 @@ const FREE_MODEL_CHAIN = [
  * @param {string} userPrompt - The user's message
  * @param {Array} history - Prior conversation messages [{sender, text}]
  * @param {string} activeMode - 'Pure Logic' | 'Synaptic Duality' | 'Human Empathy'
- * @param {string|null} [model] - Optional override model slug (bypasses fallback chain)
+ * @param {string|null} [model] - Optional override model slug
  * @param {number} [customRatio=50] - User-configured logic percentage ratio (0-100)
  */
 export async function getOpenRouterSynthesizedResponse(userPrompt, history = [], activeMode = 'Synaptic Duality', model = null, customRatio = 50) {
@@ -82,7 +81,11 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
 
   messages.push({ role: 'user', content: userPrompt });
 
-  const modelsToTry = model ? [model] : FREE_MODEL_CHAIN;
+  // If a model is requested, try it first, then fall back to FREE_MODEL_CHAIN if it fails
+  const modelsToTry = model
+    ? [model, ...FREE_MODEL_CHAIN.filter(m => m !== model)]
+    : FREE_MODEL_CHAIN;
+
   let lastError = null;
   let attemptedCount = 0;
 
@@ -96,7 +99,7 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${API_KEY.trim()}`,
-          'HTTP-Referer': window.location.origin || 'http://localhost:5173',
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
           'X-Title': 'MindBot AI Duality Platform',
         },
         body: JSON.stringify({
@@ -104,8 +107,6 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
           messages: messages,
           temperature: activeMode.includes('Logic') ? 0.35 : activeMode.includes('Empathy') ? 0.85 : 0.7,
           max_tokens: 2048,
-          // NOTE: response_format omitted — not all free models support json_object enforcement.
-          // The system prompt strictly instructs JSON output instead.
         }),
       });
 
@@ -119,7 +120,6 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
 
       if (!res.ok) {
         const errText = await res.text();
-        // For other errors (400, 500 etc), also skip to next model
         console.warn(`[MindBot] OpenRouter "${currentModel}" error (HTTP ${res.status}) → trying next model...`);
         lastError = new Error(`OpenRouter API Error HTTP ${res.status}: ${errText}`);
         continue;
@@ -134,12 +134,17 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
         continue;
       }
 
-      // Clean markdown fences if model ignores the no-fences instruction
-      const cleaned = rawContent
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/```\s*$/, '')
+      // Clean markdown fences if model includes them
+      let cleaned = rawContent
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/gi, '')
         .trim();
+
+      // Extract JSON object if wrapped in additional commentary
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
 
       let result;
       try {

@@ -289,21 +289,22 @@ function ModelSelector({ activeProvider, onProviderChange, isDropUp = false }) {
 
   const providers = [
     {
-      id: 'gemini',
-      title: 'Gemini 2.0 Flash',
-      desc: 'Fast, high precision multimodal intelligence',
-      icon: <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />,
-    },
-    {
       id: 'groq',
-      title: 'Groq (Llama 3.3 70B)',
+      title: 'Groq',
       desc: 'Ultra-fast synthesis powered by Groq Llama 3.3',
       icon: <Zap className="w-4 h-4 text-orange-400 shrink-0" />,
     },
     {
+      id: 'gemini',
+      title: 'Gemini 3.6 Flash',
+      desc: 'Fast, high precision multimodal intelligence',
+      icon: <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />,
+    },
+
+    {
       id: 'openrouter',
-      title: 'OpenRouter (Gemma 4 31B)',
-      desc: 'Google Gemma 4 31B & 200+ models via OpenRouter',
+      title: 'OpenRouter',
+      desc: 'Auto-routed access to free open-source models via OpenRouter',
       icon: <Globe className="w-4 h-4 text-emerald-400 shrink-0" />,
     },
   ];
@@ -385,7 +386,7 @@ function ModelSelector({ activeProvider, onProviderChange, isDropUp = false }) {
   );
 }
 
-function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, activeProvider = 'gemini', onProviderChange, dropUp }) {
+function InputBox({ value, onChange, onSend, placeholder, large = false, activeMode, onModeChange, activeProvider = 'groq', onProviderChange, dropUp }) {
   const [attachments, setAttachments] = useState([]);
   const [isListening, setIsListening] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -1060,7 +1061,7 @@ export default function ConversationPage() {
   const [hasStarted, setHasStarted] = useState(false);
   const [transitioning, setTransitioning] = useState(false); // true while welcome→chat morph plays
   const [activeMode, setActiveMode] = useState('Duality');
-  const [activeProvider, setActiveProvider] = useState('gemini');
+  const [activeProvider, setActiveProvider] = useState('groq');
   const [dualityRatio, setDualityRatio] = useState(50); // 0-100, logic%
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
 
@@ -1234,8 +1235,8 @@ export default function ConversationPage() {
 
       // Determine a helpful error message based on the error type
       const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('API_KEY') || err?.message?.includes('INVALID_ARGUMENT') || err?.message?.includes('API key');
-      const providerLabel = activeProvider === 'groq' ? 'Groq' : activeProvider === 'grok' ? 'Grok (xAI)' : 'Gemini';
-      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
+      const providerLabel = activeProvider === 'groq' ? 'Groq' : activeProvider === 'openrouter' ? 'OpenRouter' : activeProvider === 'grok' ? 'Grok (xAI)' : 'Gemini';
+      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'openrouter' ? 'VITE_OPENROUTER_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
 
       const errorText = isAuthError
         ? `⚠️ API key error — the ${providerLabel} API key in your .env file appears invalid or missing. Please add a valid \`${envKey}\` and restart the dev server.`
@@ -1285,7 +1286,7 @@ export default function ConversationPage() {
       console.error('[MindBot] Regenerate error:', err);
       setIsTyping(false);
       const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('API key') || err?.message?.includes('INVALID_ARGUMENT');
-      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
+      const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'openrouter' ? 'VITE_OPENROUTER_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'synaptica',

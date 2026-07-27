@@ -11,10 +11,10 @@ import { getOpenRouterSynthesizedResponse } from './openrouter.js';
 export const AI_PROVIDERS = [
   {
     id: 'gemini',
-    name: 'Gemini 2.0 Flash',
+    name: 'Gemini 3.6 Flash',
     providerName: 'Google AI',
     icon: 'Sparkles',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.6-flash',
     badge: 'Gemini',
   },
   {
@@ -27,10 +27,10 @@ export const AI_PROVIDERS = [
   },
   {
     id: 'openrouter',
-    name: 'OpenRouter (Gemma 4 31B)',
+    name: 'OpenRouter',
     providerName: 'OpenRouter',
     icon: 'Globe',
-    defaultModel: 'google/gemma-4-31b-it:free',
+    defaultModel: 'openrouter/free',
     badge: 'OpenRouter',
   },
 ];
@@ -45,11 +45,11 @@ export const AI_PROVIDERS = [
  * @param {string} [model] - Optional specific model ID
  * @param {number} [customRatio=50] - User-configured logic percentage ratio (0-100)
  */
-export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Duality', provider = 'gemini', model, customRatio = 50) {
+export async function getSynthesizedResponse(userPrompt, history = [], activeMode = 'Duality', provider = 'groq', model, customRatio = 50) {
   if (provider === 'groq') {
     return await getGroqSynthesizedResponse(userPrompt, history, activeMode, model || 'llama-3.3-70b-versatile', customRatio);
   } else if (provider === 'openrouter') {
-    return await getOpenRouterSynthesizedResponse(userPrompt, history, activeMode, model || 'google/gemma-4-31b-it:free', customRatio);
+    return await getOpenRouterSynthesizedResponse(userPrompt, history, activeMode, model || 'openrouter/free', customRatio);
   } else if (provider === 'grok') {
     return await getGrokSynthesizedResponse(userPrompt, history, activeMode, model || 'grok-beta', customRatio);
   } else {
@@ -57,7 +57,7 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
     return {
       ...res,
       provider: 'gemini',
-      modelUsed: model || 'gemini-2.0-flash',
+      modelUsed: model || 'gemini-3.6-flash',
     };
   }
 }
