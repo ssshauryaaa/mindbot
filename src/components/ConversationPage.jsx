@@ -9,6 +9,7 @@ import {
   Share2, ThumbsUp, ThumbsDown, Code,
   Download, Clock, X, FileText, Image as ImageIcon, File,
   Trash2, Search, Volume2, VolumeX, Star, BarChart2, ArrowUp, Loader2,
+  Smartphone, ExternalLink,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
@@ -27,6 +28,10 @@ import InsightsPanel from './InsightsPanel';
 const PAGE_BG = 'var(--bg-base)'; // resolves to #020203
 const GREEN = '#22ff88';
 const GREEN_DIM = '#0f7a45';
+
+// WhatsApp number Synaptica runs on — shown in the WhatsApp quick menu below.
+const WHATSAPP_DISPLAY_NUMBER = '+1 (555) 659-1524';
+const WHATSAPP_DIAL_NUMBER = '15556591524'; // digits only, for wa.me links
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -122,6 +127,7 @@ function Sidebar({ onNavigate, hasStarted = false, messages = [] }) {
     { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => onNavigate('history') },
     { title: 'Session Insights', icon: <BarChart2 className="h-full w-full" />, onClick: () => onNavigate('insights') },
     { title: 'Export Chat', icon: <Download className="h-full w-full" />, onClick: () => onNavigate('export') },
+    { title: 'Chat on WhatsApp', icon: <MessageSquare className="h-full w-full" />, onClick: () => onNavigate('whatsapp') },
     { title: 'Landing Page', icon: <Compass className="h-full w-full" />, onClick: () => navigate('/landing') },
   ];
 
@@ -1370,27 +1376,43 @@ function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMe
         @keyframes panelPopIn {
           0% {
             opacity: 0;
-            transform: perspective(900px) rotateX(-18deg) rotateY(10deg) translateY(-50%) translateZ(-60px) scale(0.82);
+            transform: translateY(-50%) scale(0.9);
             filter: blur(6px);
           }
           60% {
             opacity: 1;
-            transform: perspective(900px) rotateX(4deg) rotateY(-2deg) translateY(-50%) translateZ(10px) scale(1.02);
+            transform: translateY(-50%) scale(1.02);
             filter: blur(0px);
           }
           100% {
             opacity: 1;
-            transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(-50%) translateZ(0px) scale(1);
+            transform: translateY(-50%) scale(1);
             filter: blur(0px);
           }
         }
+        @keyframes panelPopOut {
+          0% {
+            opacity: 1;
+            transform: translateY(-50%) scale(1);
+            filter: blur(0px);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-50%) scale(0.9);
+            filter: blur(4px);
+          }
+        }
         @keyframes itemSlideIn {
-          0% { opacity: 0; transform: translateX(-14px) translateZ(-20px); }
-          100% { opacity: 1; transform: translateX(0) translateZ(0); }
+          0% { opacity: 0; transform: translateX(-14px); }
+          100% { opacity: 1; transform: translateX(0); }
         }
         @keyframes backdropFade {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes backdropFadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
         }
         @keyframes sheen {
           0% { transform: translateX(-120%) skewX(-20deg); }
@@ -1399,20 +1421,19 @@ function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMe
         .menu-item {
           position: relative;
           transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
-          transform-style: preserve-3d;
         }
         .menu-item:hover:not(:disabled) {
           background: rgba(255,255,255,0.07) !important;
-          transform: translateX(4px) translateZ(18px);
+          transform: translateX(4px);
         }
         .menu-item:active:not(:disabled) {
-          transform: translateX(2px) translateZ(10px) scale(0.985);
+          transform: translateX(2px) scale(0.985);
         }
         .menu-item-icon {
           transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
         }
         .menu-item:hover:not(:disabled) .menu-item-icon {
-          transform: scale(1.16) translateZ(8px);
+          transform: scale(1.16);
           filter: drop-shadow(0 0 6px rgba(255,255,255,0.35));
         }
         .menu-item-chevron {
@@ -1541,6 +1562,193 @@ function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMe
   );
 }
 
+function WhatsAppQuickMenu({ isOpen, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  // Mobile uses a bottom-sheet layout (it sits above the horizontal
+  // dock at the bottom of the screen); desktop keeps the left-dock-
+  // anchored panel. Tracks the `md` breakpoint (768px) to match Tailwind.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const copyNumber = () => {
+    navigator.clipboard.writeText(WHATSAPP_DISPLAY_NUMBER);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openWhatsApp = () => {
+    window.open(`https://wa.me/${WHATSAPP_DIAL_NUMBER}`, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <React.Fragment key="wa-menu-root">
+          {/* Backdrop */}
+          <motion.div
+            key="wa-backdrop"
+            className="fixed inset-0 z-[150]"
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            onClick={onClose}
+          />
+
+          {/* Menu Container
+              Mobile (<768px): bottom sheet — full-width (minus side gutters),
+              anchored above the mobile dock, slides up from the bottom.
+              Desktop (>=768px): original left-dock-anchored panel,
+              vertically centered, fades/scales in place. */}
+          <motion.div
+            key="wa-panel"
+            className="fixed z-[151] rounded-2xl overflow-hidden shadow-2xl left-4 right-4 mx-auto max-w-[380px] bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] md:left-20 md:right-auto md:bottom-auto md:top-1/2 md:max-w-none md:mx-0"
+            style={{
+              background: 'linear-gradient(155deg, rgba(20,20,20,0.98), rgba(4,4,4,0.99))',
+              border: '1px solid rgba(255,255,255,0.16)',
+              minWidth: isMobile ? undefined : 260,
+              boxShadow: `
+                0 30px 60px -12px rgba(0,0,0,0.9),
+                0 0 0 1px rgba(255,255,255,0.04),
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 0 40px rgba(255,255,255,0.02)
+              `,
+            }}
+            initial={
+              isMobile
+                ? { opacity: 0, y: 24, scale: 0.96 }
+                : { opacity: 0, y: '-50%', scale: 0.9, filter: 'blur(6px)' }
+            }
+            animate={
+              isMobile
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 1, y: '-50%', scale: 1, filter: 'blur(0px)' }
+            }
+            exit={
+              isMobile
+                ? { opacity: 0, y: 16, scale: 0.96 }
+                : { opacity: 0, y: '-50%', scale: 0.9, filter: 'blur(4px)' }
+            }
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* sheen sweep across the top edge */}
+            <div
+              className="pointer-events-none absolute inset-0 overflow-hidden opacity-40 select-none"
+              style={{ mixBlendMode: 'overlay' }}
+            >
+              <style>{`
+                @keyframes waSheen {
+                  0% { transform: translateX(-120%) skewX(-20deg); }
+                  100% { transform: translateX(220%) skewX(-20deg); }
+                }
+              `}</style>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '40%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+                  animation: 'waSheen 2.4s ease-in-out infinite',
+                  animationDelay: '0.6s',
+                }}
+              />
+            </div>
+
+            <div
+              className="px-4 py-3 flex items-center justify-between relative"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <p className="text-[11px] font-mono text-white/45 uppercase tracking-wider">
+                Chat on WhatsApp
+              </p>
+              <button
+                onClick={onClose}
+                className="text-white/30 hover:text-white/80 transition-colors cursor-pointer p-1 -m-1"
+                style={{ transition: 'transform 0.2s ease, color 0.2s ease' }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'rotate(90deg)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'rotate(0deg)')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="px-4 pt-4 pb-2 relative">
+              <p
+                className="text-[13px] text-white/60 leading-relaxed mb-3.5"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                PyroBot runs on WhatsApp too — same duality engine, no app to open. Text this number to start:
+              </p>
+
+              <div
+                className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl mb-3"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="flex items-center justify-center rounded-lg shrink-0"
+                    style={{ width: 30, height: 30, background: 'rgba(34,255,136,0.1)', border: '1px solid rgba(34,255,136,0.25)' }}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" style={{ color: GREEN }} />
+                  </span>
+                  <span
+                    className="text-[14px] font-semibold text-white/90 tabular-nums truncate"
+                    style={{ fontFamily: 'Space Grotesk, sans-serif', letterSpacing: '-0.01em' }}
+                  >
+                    {WHATSAPP_DISPLAY_NUMBER}
+                  </span>
+                </div>
+                <button
+                  onClick={copyNumber}
+                  title="Copy number"
+                  className="shrink-0 w-8 h-8 md:w-7 md:h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" style={{ color: GREEN }} /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="px-4 pb-4 relative" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}>
+              <button
+                onClick={openWhatsApp}
+                className="w-full flex items-center justify-center gap-2 py-3 md:py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition-transform active:scale-[0.98]"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  background: `linear-gradient(155deg, ${GREEN}, ${GREEN_DIM})`,
+                  color: '#04140a',
+                  boxShadow: '0 4px 16px rgba(34,255,136,0.3)',
+                }}
+              >
+                Open in WhatsApp
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        </React.Fragment>
+      )}
+    </AnimatePresence>
+  );
+}
+
+
+
+
+
 /* ════════════════════════════════════════════════════════════════
    11. CONVERSATION PAGE — main export
 ════════════════════════════════════════════════════════════════ */
@@ -1558,6 +1766,7 @@ export default function ConversationPage() {
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showWhatsAppMenu, setShowWhatsAppMenu] = useState(false);
 
   // Starred messages — persisted to localStorage
   const [starredMessages, setStarredMessages] = useState(() => {
@@ -1918,6 +2127,9 @@ export default function ConversationPage() {
             // Show export mini-menu (handled inline below)
             setShowExportMenu(v => !v);
           }
+          if (action === 'whatsapp') {
+            setShowWhatsAppMenu(v => !v);
+          }
         }}
         hasStarted={hasStarted}
         messages={messages}
@@ -1946,6 +2158,11 @@ export default function ConversationPage() {
         onExportMarkdown={exportAsMarkdown}
         onExportPDF={exportAsPDF}
         hasMessages={messages.length > 0}
+      />
+
+      <WhatsAppQuickMenu
+        isOpen={showWhatsAppMenu}
+        onClose={() => setShowWhatsAppMenu(false)}
       />
 
 

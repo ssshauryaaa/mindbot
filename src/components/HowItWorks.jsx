@@ -12,6 +12,9 @@ import {
   Activity,
   GitMerge,
   Globe,
+  MessageCircle,
+  Smartphone,
+  Send,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LiquidMetalButton } from './ui/liquid-metal-button';
@@ -91,6 +94,20 @@ const STEPS = [
       { icon: Database, text: 'Auto-saved to local storage on every message' },
       { icon: Bookmark, text: 'Full session restore — messages, mode, provider' },
       { icon: Activity, text: 'Searchable history drawer accessible at any time' },
+    ],
+  },
+  {
+    number: '06',
+    title: 'It Follows You to WhatsApp',
+    tag: 'WhatsApp Integration',
+    icon: MessageCircle,
+    accent: '#D8D8D8',
+    description:
+      'The same duality engine runs where you already are. Message Synaptica directly on WhatsApp and get the identical Logic + Empathy synthesis — no app to open, no tab to switch to. One number, the same mind, wherever you text from.',
+    detail: [
+      { icon: Smartphone, text: 'Native WhatsApp number — just save it and say hi' },
+      { icon: Send, text: 'Same synthesis engine, replies in seconds' },
+      { icon: Globe, text: 'Works from any phone, anywhere, no install required' },
     ],
   },
 ];
@@ -205,8 +222,9 @@ function ConnectorStub({ index, total, isLeft }) {
    what that step actually does — a waveform for tone detection,
    two overlapping circles for the dual lenses, a hub-and-spoke for
    model routing, converging paths for synthesis, stacked layers for
-   memory — rather than a generic icon or stock photo, so it stays
-   inside the grayscale/glass language of the rest of the section.
+   memory, a chat-bubble handoff for WhatsApp — rather than a
+   generic icon or stock photo, so it stays inside the grayscale/
+   glass language of the rest of the section.
    ──────────────────────────────────────────────────────────────── */
 function StepGraphic({ step, accent }) {
   switch (step.number) {
@@ -279,6 +297,34 @@ function StepGraphic({ step, accent }) {
           <rect x="94" y="72" width="120" height="20" rx="5" fill="none" stroke={accent} strokeWidth="1.4" opacity="0.3" />
           <rect x="83" y="55" width="120" height="20" rx="5" fill="none" stroke={accent} strokeWidth="1.4" opacity="0.55" />
           <rect x="72" y="38" width="120" height="20" rx="5" fill="none" stroke={accent} strokeWidth="1.4" opacity="0.9" />
+        </svg>
+      );
+    case '06':
+      // A chat bubble on one side handing off to a phone outline on
+      // the other, joined by a single sending arc — the conversation
+      // leaving the web app and landing on WhatsApp.
+      return (
+        <svg viewBox="0 0 300 120" className="w-full h-full">
+          <path
+            d="M56,44 h64 a10,10 0 0 1 10,10 v18 a10,10 0 0 1 -10,10 h-46 l-14,14 v-14 h-4 a10,10 0 0 1 -10,-10 v-18 a10,10 0 0 1 10,-10 z"
+            fill="none"
+            stroke={accent}
+            strokeWidth="1.6"
+            opacity="0.55"
+          />
+          <path
+            d="M130,60 C168,60 168,60 206,60"
+            stroke={accent}
+            strokeWidth="1.6"
+            strokeDasharray="3 6"
+            fill="none"
+            opacity="0.5"
+          />
+          <rect x="206" y="30" width="38" height="60" rx="8" fill="none" stroke={accent} strokeWidth="1.6" opacity="0.9" />
+          <line x1="216" y1="76" x2="234" y2="76" stroke={accent} strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+          <circle cx="225" cy="46" r="3" fill={accent} opacity="0.6" />
+          <circle cx="234" cy="46" r="3" fill={accent} opacity="0.9" />
+          <circle cx="216" cy="46" r="3" fill={accent} opacity="0.35" />
         </svg>
       );
     default:
