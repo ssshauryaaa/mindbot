@@ -93,10 +93,10 @@ export default async function handler(req, res) {
       const entry = body.entry?.[0];
       const change = entry?.changes?.[0];
       const val = change?.value;
-      
+
       if (val && val.messages && val.messages[0]) {
         const message = val.messages[0];
-        const userPhone = message.from; 
+        const userPhone = message.from;
         const userText = message.text?.body;
 
         if (userText) {
