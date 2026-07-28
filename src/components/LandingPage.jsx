@@ -84,7 +84,6 @@ export default function LandingPage() {
             dpr={[1, 1.5]}
             shadows
             camera={{ position: [0, 0.15, 5], fov: isMobile ? 44 : 32 }}
-            style={{ cursor: 'none' }}
           >
             <ambientLight intensity={animating ? 0.8 : 0.15} />
             <pointLight position={isMobile ? [0, 0.7, 1.6] : [2.7, 0.7, 1.6]} intensity={14} color="#ff4d8d" distance={2.6} />

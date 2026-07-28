@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import CustomCursor from './components/CustomCursor';
 import ConversationPage from './components/ConversationPage';
 import LandingPage from './components/LandingPage';
 
@@ -9,9 +8,6 @@ function AppContent() {
 
   return (
     <>
-      {/* Decorative cursor on Landing Page only */}
-      {location.pathname === '/landing' && <CustomCursor />}
-
       <Routes>
         {/* / → Welcome + Chat */}
         <Route path="/" element={<ConversationPage />} />

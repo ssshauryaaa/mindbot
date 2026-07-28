@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import CustomCursor from './CustomCursor';
 import {
   Brain,
   SlidersHorizontal,
@@ -21,10 +22,6 @@ import { LiquidMetalButton } from './ui/liquid-metal-button';
 import { CometCard } from './ui/comet-card';
 import { GlareCard } from './ui/glare-card';
 
-/* ────────────────────────────────────────────────────────────────
-   Step data — `accent` is a plain grayscale hex value, no color
-   tokens. Hierarchy comes from brightness only.
-   ──────────────────────────────────────────────────────────────── */
 const STEPS = [
   {
     number: '01',
@@ -33,11 +30,11 @@ const STEPS = [
     icon: Brain,
     accent: '#FFFFFF',
     description:
-      'Before a word is processed, the sentiment engine parses your message for tone — stressed, technical, curious, or creative. It uses word-boundary pattern matching to detect dominant signals and automatically shifts the AI mode to match what you actually need.',
+      'The engine scans your message for tone, intent, and context — stressed, technical, curious, or creative. It then shifts the AI mode so the response matches what you actually need, not just what you typed.',
     detail: [
-      { icon: Activity, text: 'Real-time tone classification on every input' },
-      { icon: Cpu, text: 'Weighted keyword scoring with negation detection' },
-      { icon: GitMerge, text: 'Auto-adapts Logic / Empathy ratio before you respond' },
+      { icon: Activity, text: 'Real-time tone detection for every input' },
+      { icon: Cpu, text: 'Nuanced scoring that senses mood and urgency' },
+      { icon: GitMerge, text: 'Auto-adjusts Logic / Empathy balance instantly' },
     ],
   },
   {
@@ -47,11 +44,11 @@ const STEPS = [
     icon: SlidersHorizontal,
     accent: '#E4E4E4',
     description:
-      'Every query runs two minds in parallel. The Logic Lens applies data-driven analysis and structured reasoning. The Empathy Lens listens for the human context, fears, and motivations beneath the words. You control the balance with a precision duality slider.',
+      'Two minds process your query at once. The Logic Lens builds structured reasoning. The Empathy Lens listens for human context, emotion, and intent. You choose the blend with a precision slider.',
     detail: [
-      { icon: Cpu, text: 'Logic Lens — structured, analytical reasoning' },
-      { icon: Heart, text: 'Empathy Lens — emotionally-aware, human-first perspective' },
-      { icon: SlidersHorizontal, text: 'Adjustable ratio from 0% to 100% at any time' },
+      { icon: Cpu, text: 'Logic Lens — analytical, data-driven thinking' },
+      { icon: Heart, text: 'Empathy Lens — human-aware, emotionally tuned insight' },
+      { icon: SlidersHorizontal, text: 'Fine-grained ratio control from 0 to 100%' },
     ],
   },
   {
@@ -61,11 +58,11 @@ const STEPS = [
     icon: Zap,
     accent: '#C8C8C8',
     description:
-      'Route your session through the model that fits the moment. Groq delivers Llama 3.3 70B at near-instant latency. Gemini brings multimodal depth. OpenRouter acts as a free fallback across the open-source frontier — with automatic failover if any engine drops.',
+      'Route your session through the model that fits the moment. Groq delivers speed and precision. Gemini brings depth and nuance. OpenRouter gives a resilient open-source fallback with smooth failover.',
     detail: [
-      { icon: Zap, text: 'Groq — Llama 3.3 70B, ultra-low latency inference' },
-      { icon: Sparkles, text: 'Gemini 3.6 Flash — high precision, multimodal' },
-      { icon: Globe, text: 'OpenRouter — dynamic model routing with fallback' },
+      { icon: Zap, text: 'Groq — fast, focused reasoning' },
+      { icon: Sparkles, text: 'Gemini — broader context and depth' },
+      { icon: Globe, text: 'OpenRouter — resilient open-source routing' },
     ],
   },
   {
@@ -75,11 +72,11 @@ const STEPS = [
     icon: GitMerge,
     accent: '#F2F2F2',
     description:
-      'The synthesis layer merges both lenses. It identifies agreement points, surfaces real differences, and produces a closing truth — not two competing answers, but one coherent perspective that holds both the data and the human in view simultaneously.',
+      'The synthesis engine merges both lenses into one coherent answer. It finds agreement, resolves conflict, and delivers a response that is complete, clear, and balanced.',
     detail: [
-      { icon: Activity, text: 'Compares Logic and Empathy signals for convergence' },
-      { icon: Brain, text: 'Generates agreement points and divergence insights' },
-      { icon: GitMerge, text: 'Produces a unified closing statement from both perspectives' },
+      { icon: Activity, text: 'Align Logic and Empathy for clearer answers' },
+      { icon: Brain, text: 'Surface insight from both perspectives' },
+      { icon: GitMerge, text: 'Produce a unified response, not competing outputs' },
     ],
   },
   {
@@ -89,11 +86,11 @@ const STEPS = [
     icon: Bookmark,
     accent: '#B0B0B0',
     description:
-      'Every conversation is auto-titled and saved as a persistent session. The History Drawer gives you instant access to any past exchange — with full message history, the AI mode used, and the provider that ran it. Nothing is ever lost.',
+      'Every conversation is auto-saved with session metadata, mode, and provider details. The History Drawer gives you instant access to past exchanges so nothing is ever lost.',
     detail: [
-      { icon: Database, text: 'Auto-saved to local storage on every message' },
-      { icon: Bookmark, text: 'Full session restore — messages, mode, provider' },
-      { icon: Activity, text: 'Searchable history drawer accessible at any time' },
+      { icon: Database, text: 'Auto-saved local sessions for quick recall' },
+      { icon: Bookmark, text: 'Restore full conversation state anytime' },
+      { icon: Activity, text: 'Searchable history with tone and provider context' },
     ],
   },
   {
@@ -103,11 +100,11 @@ const STEPS = [
     icon: MessageCircle,
     accent: '#D8D8D8',
     description:
-      'The same duality engine runs where you already are. Message Synaptica directly on WhatsApp and get the identical Logic + Empathy synthesis — no app to open, no tab to switch to. One number, the same mind, wherever you text from.',
+      'The same duality engine works where you already chat. Message Pyrobot on WhatsApp and get the same Logic + Empathy synthesis — no extra app, no extra setup.',
     detail: [
-      { icon: Smartphone, text: 'Native WhatsApp number — just save it and say hi' },
-      { icon: Send, text: 'Same synthesis engine, replies in seconds' },
-      { icon: Globe, text: 'Works from any phone, anywhere, no install required' },
+      { icon: Smartphone, text: 'Native WhatsApp number — save and message instantly' },
+      { icon: Send, text: 'Same AI synthesis delivered in seconds' },
+      { icon: Globe, text: 'Works on any phone, anywhere, no install required' },
     ],
   },
 ];
@@ -487,6 +484,7 @@ export default function HowItWorks() {
   const navigate = useNavigate();
   const sectionRef = useRef(null);
   const listRef = useRef(null);
+  const showCursor = useInView(sectionRef, { amount: 0.2 });
 
   // Single shared scroll progress for the whole zigzag list. Progress
   // is 0 while the list hasn't reached 85% down the viewport yet, and
@@ -512,6 +510,7 @@ export default function HowItWorks() {
       className="relative w-full overflow-x-hidden"
       style={{ background: 'var(--bg-base, #050506)' }}
     >
+      {showCursor && <CustomCursor />}
       {/* Fade from hero */}
       <div
         className="absolute top-0 inset-x-0 h-28 pointer-events-none"
