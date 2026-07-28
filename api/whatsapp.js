@@ -109,10 +109,18 @@ export default async function handler(req, res) {
       const body = req.body;
       console.log('[WEBHOOK POST] Raw payload body received:', JSON.stringify(body, null, 2));
 
-      // Extract message content
-      const entry = body.entry?.[0];
-      const change = entry?.changes?.[0];
-      const val = change?.value;
+      // Extract message content (robust to handle both Production wrapped payloads and Sandbox Test payloads)
+      let val = null;
+      if (body.entry?.[0]?.changes?.[0]?.value) {
+        val = body.entry[0].changes[0].value;
+        console.log('[WEBHOOK POST] Detected wrapped Production format');
+      } else if (body.value) {
+        val = body.value;
+        console.log('[WEBHOOK POST] Detected flat Test console format (.value)');
+      } else if (body.messages) {
+        val = body;
+        console.log('[WEBHOOK POST] Detected direct root format');
+      }
 
       if (val && val.messages && val.messages[0]) {
         const message = val.messages[0];
