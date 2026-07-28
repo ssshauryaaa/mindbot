@@ -987,29 +987,8 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar }) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(null);
-  const [feedbackToast, setFeedbackToast] = useState(null);
-  const [showMore, setShowMore] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const moreRef = useRef(null);
-
-  useEffect(() => {
-    if (!feedbackToast) return;
-    const timer = setTimeout(() => setFeedbackToast(null), 2600);
-    return () => clearTimeout(timer);
-  }, [feedbackToast]);
-
-  const showFeedback = (message) => {
-    setFeedbackToast({ id: Date.now(), message });
-  };
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!showMore) return;
-    const handler = e => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showMore]);
 
   const copyText = () => {
     navigator.clipboard.writeText(msg.text);
@@ -1300,9 +1279,9 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
             onClick={() => {
               const next = liked === 'up' ? null : 'up';
               setLiked(next);
-              showFeedback(next ? 'Thanks for the thumbs up!' : 'Feedback cleared.');
             }}
             active={liked === 'up'}
+            activeColor="rgba(34, 255, 136, 0.92)"
           >
             <ThumbsUp className="w-3.5 h-3.5" />
           </ActionBtn>
@@ -1311,90 +1290,39 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
             onClick={() => {
               const next = liked === 'down' ? null : 'down';
               setLiked(next);
-              showFeedback(next ? 'Got it — I’ll learn from this.' : 'Feedback cleared.');
             }}
             active={liked === 'down'}
+            activeColor="rgba(255, 112, 112, 0.96)"
           >
             <ThumbsDown className="w-3.5 h-3.5" />
           </ActionBtn>
           {/* More dropdown */}
-          <div className="relative" ref={moreRef}>
-            <ActionBtn title="More options" onClick={() => setShowMore(v => !v)} active={showMore}>
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </ActionBtn>
-            {showMore && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.92, y: 4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 4 }}
-                transition={{ duration: 0.14 }}
-                className="absolute right-0 bottom-9 z-50 rounded-xl overflow-hidden"
-                style={{ background: 'rgba(20,20,20,0.96)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 180, backdropFilter: 'blur(20px)' }}
-              >
-                {[
-                  { label: 'Copy as Markdown', action: copyMarkdown },
-                  { label: 'Download .txt', action: () => { downloadResponse(); setShowMore(false); } },
-                  { label: 'Share response', action: () => { shareResponse(); setShowMore(false); } },
-                  { label: 'Report issue', action: () => setShowMore(false) },
-                ].map(item => (
-                  <button key={item.label} onClick={item.action}
-                    className="w-full text-left px-4 py-2.5 text-[13px] text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors cursor-pointer"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </div>
         </div>
       </div>
 
-      <AnimatePresence>
-        {feedbackToast && (
-          <motion.div
-            key={feedbackToast.id}
-            initial={{ opacity: 0, y: -8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.18 }}
-            className="pointer-events-none absolute left-1/2 top-0 z-40 -translate-x-1/2 -translate-y-full flex items-center gap-2 rounded-2xl px-3 py-2 text-[12px] font-medium text-white shadow-2xl"
-            style={{
-              minWidth: '220px',
-              maxWidth: 'calc(100vw - 2rem)',
-              background: 'rgba(15, 18, 25, 0.96)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(18px)',
-            }}
-          >
-            <div className="w-4 h-4 rounded-full bg-emerald-400/15 flex items-center justify-center border border-emerald-400/30">
-              <Check className="w-2.5 h-2.5 text-emerald-300" />
-            </div>
-            <span className="truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
-              {feedbackToast.message}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
 
-function ActionBtn({ children, title, onClick, active }) {
+function ActionBtn({ children, title, onClick, active, activeColor }) {
   return (
-    <button
+    <motion.button
+      type="button"
       onClick={onClick}
       title={title}
+      whileTap={{ scale: 0.92 }}
+      animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
       className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
       style={{
-        color: active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)',
-        background: 'transparent',
+        color: active ? activeColor || 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)',
+        background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)'; }}
+      onMouseEnter={e => { e.currentTarget.style.background = active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = active ? activeColor || 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.7)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = active ? 'rgba(255,255,255,0.08)' : 'transparent'; e.currentTarget.style.color = active ? activeColor || 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)'; }}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
