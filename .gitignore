@@ -30,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# WhatsApp Bot Integration
+whatsapp-bot/.wwebjs_auth
+whatsapp-bot/.wwebjs_cache
+
