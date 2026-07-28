@@ -172,7 +172,7 @@ export default function InsightsPanel({ isOpen, onClose, messages = [] }) {
 
   const modeColor = stats.topMode?.includes('Logic') ? '#a78bfa'
     : stats.topMode?.includes('Empathy') ? '#f472b6'
-    : '#34d399';
+      : '#34d399';
 
   return (
     <AnimatePresence>
@@ -338,7 +338,7 @@ export default function InsightsPanel({ isOpen, onClose, messages = [] }) {
             {/* Footer */}
             <div className="px-5 py-3.5 border-t border-white/[0.06] shrink-0">
               <p className="text-[10px] text-white/20 text-center font-mono">
-                SYNAPTICA · Session Analytics · Live
+                Pyro · Session Analytics · Live
               </p>
             </div>
           </motion.div>
