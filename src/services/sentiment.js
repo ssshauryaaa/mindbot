@@ -1,23 +1,3 @@
-/**
- * sentiment.js
- * Professional client-side Sentiment & Emotion Analyzer for Synaptica.
- * Detects tone from user input and signals Synaptica AI to auto-adapt.
- *
- * Changes from the original:
- * - Word-boundary matching (regex) instead of `.includes()`, so "hard" no
- *   longer fires on "hardware" and "sad" no longer fires on "sadly ironic".
- * - Every category is scored (not just the first one that matches), so a
- *   message like "I'm stressed about this bug in my code" is judged on
- *   which tone actually dominates, not on array order.
- * - Lightweight negation handling: "not stressed" / "isn't hard" no longer
- *   count as a stressed-tone hit.
- * - Priority is now an explicit, named constant instead of "whichever
- *   `if` happens to run first" — easy to see and to change.
- * - Output keeps the same shape as before (type, label, icon, color,
- *   toneShift, shiftDescription) so existing callers don't break, plus
- *   two additive fields: `confidence` and `matchedKeywords`.
- */
-
 const CATEGORIES = {
   stressed: {
     keywords: [
@@ -28,10 +8,10 @@ const CATEGORIES = {
     ],
     label: "High Empathy Tone",
     icon: "HeartHandshake",
-    color: "rose",
+    color: "#d68b9a", // muted rose
     toneShift: "empathy",
-    shiftDescription: "Auto-adapted: High Empathy Mode 🧠",
-    weight: 1.4, // emotional-safety signals win close ties on purpose
+    shiftDescription: "Auto-adapted: High Empathy Mode",
+    weight: 1.4,
   },
   technical: {
     keywords: [
@@ -42,9 +22,9 @@ const CATEGORIES = {
     ],
     label: "Deep Logic Tone",
     icon: "Cpu",
-    color: "violet",
+    color: "#8b7ed8", // muted violet
     toneShift: "logic",
-    shiftDescription: "Auto-adapted: Machine Logic Mode ⚡",
+    shiftDescription: "Auto-adapted: Machine Logic Mode",
     weight: 1,
   },
   curious: {
@@ -55,9 +35,9 @@ const CATEGORIES = {
     ],
     label: "Inquisitive Tone",
     icon: "Search",
-    color: "sky",
+    color: "#6b9bc3", // muted sky
     toneShift: "balanced",
-    shiftDescription: "Balanced Duality Mode ⚖️",
+    shiftDescription: "Balanced Duality Mode",
     weight: 0.9,
   },
   creative: {
@@ -67,9 +47,9 @@ const CATEGORIES = {
     ],
     label: "Creative Tone",
     icon: "Sparkles",
-    color: "amber",
+    color: "#c9a15c", // muted amber
     toneShift: "balanced",
-    shiftDescription: "Creative Synthesis Mode ✨",
+    shiftDescription: "Creative Synthesis Mode",
     weight: 0.9,
   },
 };

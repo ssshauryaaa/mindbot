@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, FileSpreadsheet, FileCode, Copy, Check, X, Download, HeartHandshake, Cpu, Search, Sparkles, MessageSquare } from "lucide-react";
+import { FileText, FileSpreadsheet, FileCode, Copy, Check, X, Download, HeartPulse, Cpu, Lightbulb, Wand2, MessageCircle } from "lucide-react";
 
 function SentimentIcon({ type, className = "w-3 h-3" }) {
-    if (type === "stressed") return <HeartHandshake className={className} />;
+    if (type === "stressed") return <HeartPulse className={className} />;
     if (type === "technical") return <Cpu className={className} />;
-    if (type === "curious") return <Search className={className} />;
-    if (type === "creative") return <Sparkles className={className} />;
-    return <MessageSquare className={className} />;
+    if (type === "curious") return <Lightbulb className={className} />;
+    if (type === "creative") return <Wand2 className={className} />;
+    return <MessageCircle className={className} />;
 }
 
 /* ────────────────────────────────────────────────────────────────

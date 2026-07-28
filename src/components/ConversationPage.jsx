@@ -987,10 +987,21 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar }) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(null);
+  const [feedbackToast, setFeedbackToast] = useState(null);
   const [showMore, setShowMore] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const moreRef = useRef(null);
+
+  useEffect(() => {
+    if (!feedbackToast) return;
+    const timer = setTimeout(() => setFeedbackToast(null), 2600);
+    return () => clearTimeout(timer);
+  }, [feedbackToast]);
+
+  const showFeedback = (message) => {
+    setFeedbackToast({ id: Date.now(), message });
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -1284,10 +1295,26 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
 
         {/* Right actions */}
         <div className="flex items-center gap-1 relative">
-          <ActionBtn title="Good response" onClick={() => setLiked(liked === 'up' ? null : 'up')} active={liked === 'up'}>
+          <ActionBtn
+            title="Good response"
+            onClick={() => {
+              const next = liked === 'up' ? null : 'up';
+              setLiked(next);
+              showFeedback(next ? 'Thanks for the thumbs up!' : 'Feedback cleared.');
+            }}
+            active={liked === 'up'}
+          >
             <ThumbsUp className="w-3.5 h-3.5" />
           </ActionBtn>
-          <ActionBtn title="Bad response" onClick={() => setLiked(liked === 'down' ? null : 'down')} active={liked === 'down'}>
+          <ActionBtn
+            title="Bad response"
+            onClick={() => {
+              const next = liked === 'down' ? null : 'down';
+              setLiked(next);
+              showFeedback(next ? 'Got it — I’ll learn from this.' : 'Feedback cleared.');
+            }}
+            active={liked === 'down'}
+          >
             <ThumbsDown className="w-3.5 h-3.5" />
           </ActionBtn>
           {/* More dropdown */}
@@ -1322,6 +1349,33 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {feedbackToast && (
+          <motion.div
+            key={feedbackToast.id}
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-none absolute left-1/2 top-0 z-40 -translate-x-1/2 -translate-y-full flex items-center gap-2 rounded-2xl px-3 py-2 text-[12px] font-medium text-white shadow-2xl"
+            style={{
+              minWidth: '220px',
+              maxWidth: 'calc(100vw - 2rem)',
+              background: 'rgba(15, 18, 25, 0.96)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              backdropFilter: 'blur(18px)',
+            }}
+          >
+            <div className="w-4 h-4 rounded-full bg-emerald-400/15 flex items-center justify-center border border-emerald-400/30">
+              <Check className="w-2.5 h-2.5 text-emerald-300" />
+            </div>
+            <span className="truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {feedbackToast.message}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -1396,12 +1450,22 @@ function TypingIndicator({ sentiment }) {
 function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMessages }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   if (!isOpen) return null;
 
   const handleMouseMove = (e) => {
-    if (!menuRef.current) return;
+    if (!menuRef.current || isMobile) return;
     const rect = menuRef.current.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;
@@ -1523,14 +1587,20 @@ function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMe
         ref={menuRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="fixed left-4 md:left-20 top-1/2 z-[151] rounded-2xl overflow-hidden shadow-2xl"
+        className="fixed left-4 right-4 mx-auto z-[151] rounded-2xl overflow-hidden shadow-2xl md:left-20 md:right-auto md:mx-0"
         style={{
           background: 'linear-gradient(155deg, rgba(20,20,20,0.98), rgba(4,4,4,0.99))',
           border: '1px solid rgba(255,255,255,0.16)',
-          minWidth: 230,
-          transformOrigin: 'left center',
+          minWidth: isMobile ? undefined : 240,
+          maxWidth: isMobile ? 'calc(100% - 2rem)' : 360,
+          width: isMobile ? 'calc(100% - 2rem)' : undefined,
+          top: isMobile ? undefined : '50%',
+          bottom: isMobile ? 'max(1rem, env(safe-area-inset-bottom, 0px))' : undefined,
+          transformOrigin: isMobile ? 'center bottom' : 'left center',
           animation: 'panelPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-          transform: `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-50%)`,
+          transform: isMobile
+            ? 'none'
+            : `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-50%)`,
           transition: 'transform 0.15s ease-out',
           boxShadow: `
             0 30px 60px -12px rgba(0,0,0,0.9),
@@ -1674,11 +1744,15 @@ function WhatsAppQuickMenu({ isOpen, onClose }) {
               vertically centered, fades/scales in place. */}
           <motion.div
             key="wa-panel"
-            className="fixed z-[151] rounded-2xl overflow-hidden shadow-2xl left-4 right-4 mx-auto max-w-[360px] bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] md:left-20 md:right-auto md:bottom-auto md:top-1/2 md:max-w-[320px] md:mx-0"
+            className="fixed z-[151] rounded-2xl overflow-hidden shadow-2xl left-4 right-4 mx-auto md:left-20 md:right-auto md:mx-0"
             style={{
               background: 'linear-gradient(155deg, rgba(20,20,20,0.98), rgba(4,4,4,0.99))',
               border: '1px solid rgba(255,255,255,0.16)',
               minWidth: isMobile ? undefined : 240,
+              maxWidth: isMobile ? 'calc(100% - 2rem)' : 320,
+              width: isMobile ? 'calc(100% - 2rem)' : undefined,
+              top: isMobile ? undefined : '50%',
+              bottom: isMobile ? 'max(1rem, env(safe-area-inset-bottom, 0px))' : undefined,
               boxShadow: `
                 0 30px 60px -12px rgba(0,0,0,0.9),
                 0 0 0 1px rgba(255,255,255,0.04),
@@ -2346,26 +2420,10 @@ export default function ConversationPage() {
                       onClick={() => setDualityRatio(50)}
                       className="text-[10px] text-white/40 hover:text-white font-mono px-2 py-1 rounded-lg bg-white/5 border border-white/10 transition-colors cursor-pointer"
                     >
-                      Reset 50/50
+                      Reset 
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] sm:text-xs font-mono font-semibold text-white/50 uppercase tracking-wider">
-                      Safe Demo Mode
-                    </span>
-                    <button
-                      onClick={() => setSafeDemoMode(v => !v)}
-                      className="text-[10px] text-white/75 hover:text-white font-mono px-2.5 py-1 rounded-lg border transition-colors cursor-pointer"
-                      style={{
-                        background: safeDemoMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
-                        borderColor: safeDemoMode ? 'rgba(16,185,129,0.45)' : 'rgba(255,255,255,0.12)',
-                      }}
-                      title="When enabled, Pyrobot prioritizes resilient routing and local fallback continuity."
-                    >
-                      {safeDemoMode ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
 
                   <DualitySlider
                     value={dualityRatio}
@@ -2374,23 +2432,8 @@ export default function ConversationPage() {
                   />
                 </div>
 
-                {/* Prompt suggestion chips */}
                 <div className="relative z-10">
-                  {/* <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-white/45">
-                      Demo Presets
-                    </span>
-                    {DEMO_PRESETS.map((preset, idx) => (
-                      <button
-                        key={preset}
-                        onClick={() => setInputVal(preset)}
-                        className="text-[10px] sm:text-[11px] px-2 py-1 rounded-lg border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                        title={preset}
-                      >
-                        Preset {idx + 1}
-                      </button>
-                    ))}
-                  </div> */}
+                  
                   <SuggestionChips
                     onSelect={(text) => {
                       setInputVal(text);
@@ -2413,10 +2456,7 @@ export default function ConversationPage() {
 
               <div className="relative flex-1 min-h-0">
                 <div
-                  className="h-full overflow-y-auto messages-scroll-container"
-                  style={{
-                    paddingTop: '2.5rem',
-                  }}
+                  className="h-full overflow-y-auto messages-scroll-container pt-16 sm:pt-10"
                 >
                   <div
                     className="max-w-3xl mx-auto space-y-8 px-3 sm:px-16 lg:px-6"
@@ -2459,7 +2499,6 @@ export default function ConversationPage() {
               </div>
 
 
-              {/* Smooth dark gradient backdrop behind floating input area */}
               <div
                 className="absolute bottom-0 left-0 right-0 h-44 pointer-events-none z-10 select-none"
                 style={{
@@ -2469,7 +2508,6 @@ export default function ConversationPage() {
                 }}
               />
 
-              {/* Floating input — with safe-area bottom for iOS */}
               <motion.div
                 ref={inputWrapRef}
                 initial={{ opacity: 0, y: 24 }}
