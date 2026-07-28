@@ -4,7 +4,7 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // System prompt adapted for WhatsApp chat flow
-const SYSTEM_PROMPT = `You are Synaptica, an expert AI & Human Duality Intelligence System.
+const SYSTEM_PROMPT = `You are PyroBot, an expert AI & Human Duality Intelligence System.
 
 You synthesize two distinct streams of thought:
 1. Machine Logic — analytical data, facts, step-by-step structure.
@@ -21,7 +21,7 @@ Never mention AI internals, confidence scores, or model names.`;
 async function getAIResponse(userMessage) {
   const API_KEY = process.env.VITE_OPENROUTER_API_KEY;
   console.log('[AI CONFIG] Using API Key (first 8 chars):', API_KEY ? `${API_KEY.slice(0, 8)}...` : 'MISSING');
-  
+
   if (!API_KEY) {
     console.error('[AI ERROR] Missing VITE_OPENROUTER_API_KEY env variable');
     return '⚠️ System Configuration Error: Missing API Key.';

@@ -1070,7 +1070,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `synaptica-response-${Date.now()}.txt`;
+    a.download = `pyro-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1802,7 +1802,7 @@ export default function ConversationPage() {
   const exportAsMarkdown = useCallback(() => {
     if (!messages.length) return;
     const lines = [];
-    lines.push(`# SYNAPTICA Chat Export`);
+    lines.push(`# PyroBot Chat Export`);
     lines.push(`> Session: ${new Date().toLocaleString()}`);
     lines.push(`> Mode: ${activeMode} | Provider: ${activeProvider}`);
     lines.push('');
@@ -1812,7 +1812,7 @@ export default function ConversationPage() {
         lines.push(msg.text || '');
         lines.push('');
       } else if (msg.sender === 'synaptica') {
-        lines.push(`## 🤖 Synaptica — ${msg.time || ''}`);
+        lines.push(`## 🤖 PyroBot — ${msg.time || ''}`);
         if (msg.modeName) lines.push(`*Mode: ${msg.modeName}*`);
         lines.push('');
         lines.push(msg.text || '');
@@ -1832,7 +1832,7 @@ export default function ConversationPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `synaptica-chat-${Date.now()}.md`;
+    a.download = `PyroBot-chat-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }, [messages, activeMode, activeProvider]);
@@ -1845,7 +1845,7 @@ export default function ConversationPage() {
         return `<div style="margin:18px 0"><strong style="color:#888">You</strong><br/><p style="margin:6px 0">${(msg.text || '').replace(/\n/g, '<br/>')}</p></div>`;
       }
       return `<div style="margin:18px 0;padding:14px;background:#0a0a12;border-radius:10px;border:1px solid #222">
-        <strong style="color:#a78bfa">Synaptica</strong> <small style="color:#555">${msg.modeName || ''}</small><br/>
+        <strong style="color:#a78bfa">PyroBot</strong> <small style="color:#555">${msg.modeName || ''}</small><br/>
         <p style="margin:8px 0;color:#ddd">${(msg.text || '').replace(/```[\s\S]*?```/g, '[code block]').replace(/\n/g, '<br/>')}</p>
         ${msg.aiReasoning ? `<p style="margin:6px 0;color:#888;font-size:12px">⚡ ${msg.aiReasoning}</p>` : ''}
         ${msg.humanInsight ? `<p style="margin:6px 0;color:#888;font-size:12px">🫀 ${msg.humanInsight}</p>` : ''}
@@ -1853,11 +1853,11 @@ export default function ConversationPage() {
     }).join('');
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>Synaptica Export</title><style>
+    win.document.write(`<!DOCTYPE html><html><head><title>PyroBot Export</title><style>
       body{background:#030304;color:#e5e5e5;font-family:Inter,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;font-size:14px;line-height:1.7}
       @media print{body{background:#fff;color:#111}}
     </style></head><body>
-      <h1 style="color:#a78bfa;font-size:20px;margin-bottom:4px">SYNAPTICA – Chat Export</h1>
+      <h1 style="color:#a78bfa;font-size:20px;margin-bottom:4px">PyroBot – Chat Export</h1>
       <p style="color:#555;font-size:12px;margin-bottom:28px">${new Date().toLocaleString()} · ${activeMode} · ${activeProvider}</p>
       ${content}
     </body></html>`);
