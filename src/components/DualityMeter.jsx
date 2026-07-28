@@ -128,7 +128,7 @@ function DualityBar({ logicRatio = 50, empathyRatio = 50 }) {
 }
 
 function ReasoningCard({ icon: Icon, title, text, accent }) {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(false);
     return (
         <div
             className="group relative rounded-xl text-xs overflow-hidden transition-all duration-300"

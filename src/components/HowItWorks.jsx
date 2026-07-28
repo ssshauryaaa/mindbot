@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import {
   Brain,
   SlidersHorizontal,
@@ -342,19 +342,25 @@ function StepRow({ step, index }) {
   const Icon = step.icon;
   const accent = c(step.accent);
   const isLeft = index % 2 === 0;
+  const rowRef = useRef(null);
+  const isInView = useInView(rowRef, { once: true, amount: 0.35, margin: '-80px' });
+  const entryX = isLeft ? -56 : 56;
+
+  const rowTransition = { duration: 0.7, ease: [0.16, 1, 0.3, 1] };
+  const fadeInTransition = { duration: 0.55, ease: [0.16, 1, 0.3, 1] };
 
   return (
     <div
+      ref={rowRef}
       className={`relative flex w-full min-h-[360px] sm:min-h-[300px] items-center py-8 sm:py-10 justify-start ${isLeft ? 'sm:justify-start' : 'sm:justify-end'
         }`}
     >
       <ConnectorStub index={index} total={STEPS.length} isLeft={isLeft} />
 
       <motion.div
-        initial={{ opacity: 0, x: isLeft ? -56 : 56, y: 24 }}
-        whileInView={{ opacity: 1, x: 0, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, x: entryX, y: 24 }}
+        animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, x: entryX, y: 24 }}
+        transition={rowTransition}
         className="w-full pl-16 sm:pl-0 sm:w-[42%]"
       >
         <CometCard rotateDepth={10} translateDepth={6} className="w-full">
@@ -371,9 +377,8 @@ function StepRow({ step, index }) {
             {/* Graphic */}
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, amount: 0.6 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
+              transition={fadeInTransition}
               className="relative mb-6 rounded-2xl overflow-hidden"
               style={{
                 height: 120,
@@ -388,9 +393,8 @@ function StepRow({ step, index }) {
             <div className="relative flex items-center gap-3 sm:gap-4 mb-5">
               <motion.div
                 initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
-                whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+                animate={isInView ? { opacity: 1, scale: 1, rotate: 0 } : { opacity: 0, scale: 0.6, rotate: -8 }}
+                transition={{ ...fadeInTransition, delay: 0.15 }}
                 className="flex items-center justify-center rounded-2xl flex-shrink-0"
                 style={{
                   width: 46,
@@ -426,12 +430,15 @@ function StepRow({ step, index }) {
             />
 
             {/* Description */}
-            <p
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              transition={{ ...fadeInTransition, delay: 0.2 }}
               className="relative font-body text-sm sm:text-[14px] leading-relaxed mb-6"
               style={{ color: 'var(--text-secondary, #B8B8B8)' }}
             >
               {step.description}
-            </p>
+            </motion.p>
 
             {/* Detail rows */}
             <div className="relative space-y-2.5">
@@ -441,8 +448,7 @@ function StepRow({ step, index }) {
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, x: isLeft ? -16 : 16 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, amount: 0.6 }}
+                    animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isLeft ? -16 : 16 }}
                     transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1], delay: 0.25 + i * 0.08 }}
                     className="flex items-center gap-3"
                   >

@@ -5,87 +5,75 @@ import {
   GraduationCap, Briefcase, Brain, Sparkles,
 } from "lucide-react";
 
-/* ────────────────────────────────────────────────────────────────
-   SuggestionChips
-   Animated prompt-suggestion pills shown on the welcome screen.
-   Features:
-   - Staggered spring entrance
-   - Category-aware accent colors & icons
-   - Hover glow + micro-lift
-   - Tap to fire the prompt
-   - Responsive wrap layout
-   - Randomized subset so they feel fresh each session
-   ──────────────────────────────────────────────────────────────── */
 
 const ALL_SUGGESTIONS = [
-  // Education
+  // Education — human curiosity + AI clarity
   {
-    text: "Explain quantum entanglement in simple terms",
+    text: "Explain this like a tutor and an AI would, side by side",
     icon: BookOpen,
     category: "education",
     accent: "#4fa8ff",
   },
   {
-    text: "Help me understand calculus derivatives",
+    text: "Quiz me using memory tricks + AI-style recall",
     icon: GraduationCap,
     category: "education",
     accent: "#4fa8ff",
   },
-  // Career
+  // Career — human judgment meets AI insight
   {
-    text: "Compare careers in AI vs Cybersecurity",
+    text: "Passion vs AI-predicted career — which wins?",
     icon: Briefcase,
     category: "career",
     accent: "#34d399",
   },
   {
-    text: "What skills should I learn for 2026?",
+    text: "Skills that'll still need a human touch by 2030",
     icon: Lightbulb,
     category: "career",
     accent: "#34d399",
   },
-  // Coding
+  // Problem-solving — the core duality demo
   {
-    text: "Write a Python sorting algorithm",
+    text: "I have an idea — help me build on it, not replace it",
     icon: Code2,
-    category: "coding",
+    category: "problem-solving",
     accent: "#c084fc",
   },
   {
-    text: "Debug this: my React state isn't updating",
+    text: "Give logic, then let me finish the solution",
     icon: Code2,
-    category: "coding",
+    category: "problem-solving",
     accent: "#c084fc",
   },
-  // Empathy / Life
+  // Wellbeing — human emotion + AI support
   {
-    text: "I'm stressed about exams — how do I cope?",
+    text: "I'm overthinking — give me clarity, not the answer",
     icon: Heart,
     category: "wellbeing",
     accent: "#f472b6",
   },
   {
-    text: "How to stay motivated while studying",
+    text: "Help me stay motivated without losing my own drive",
     icon: Brain,
     category: "wellbeing",
     accent: "#f472b6",
   },
-  // Creative
+  // Creative — mind vs machine, collaborating
   {
-    text: "Give me a creative science project idea",
+    text: "I write the twist, you build the world",
     icon: Sparkles,
     category: "creative",
     accent: "#fbbf24",
   },
   {
-    text: "Write a short poem about technology and nature",
+    text: "A poem about a human mind and an AI mind",
     icon: Sparkles,
     category: "creative",
     accent: "#fbbf24",
   },
 ];
 
-// Pick `count` random items from the full set (stable per mount)
 function useRandomSubset(items, count) {
   return useMemo(() => {
     const shuffled = [...items].sort(() => Math.random() - 0.5);
@@ -116,7 +104,6 @@ export default function SuggestionChips({ onSelect, count = 6 }) {
 
   const handleSelect = (chip) => {
     setTapped(chip.text);
-    // Small delay so the user sees the tap feedback
     setTimeout(() => {
       onSelect?.(chip.text);
     }, 180);

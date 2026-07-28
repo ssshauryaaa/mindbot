@@ -1674,11 +1674,11 @@ function WhatsAppQuickMenu({ isOpen, onClose }) {
               vertically centered, fades/scales in place. */}
           <motion.div
             key="wa-panel"
-            className="fixed z-[151] rounded-2xl overflow-hidden shadow-2xl left-4 right-4 mx-auto max-w-[380px] bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] md:left-20 md:right-auto md:bottom-auto md:top-1/2 md:max-w-none md:mx-0"
+            className="fixed z-[151] rounded-2xl overflow-hidden shadow-2xl left-4 right-4 mx-auto max-w-[360px] bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] md:left-20 md:right-auto md:bottom-auto md:top-1/2 md:max-w-[320px] md:mx-0"
             style={{
               background: 'linear-gradient(155deg, rgba(20,20,20,0.98), rgba(4,4,4,0.99))',
               border: '1px solid rgba(255,255,255,0.16)',
-              minWidth: isMobile ? undefined : 260,
+              minWidth: isMobile ? undefined : 240,
               boxShadow: `
                 0 30px 60px -12px rgba(0,0,0,0.9),
                 0 0 0 1px rgba(255,255,255,0.04),
@@ -1751,7 +1751,7 @@ function WhatsAppQuickMenu({ isOpen, onClose }) {
                 className="text-[13px] text-white/60 leading-relaxed mb-3.5"
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                SYNAPTICA by Pyrobot runs on WhatsApp too — same duality engine, no app to open. Text this number to start:
+                Pyrobot runs on WhatsApp too — same duality engine, no app to open. Text this number to start:
               </p>
 
               <div
@@ -2376,7 +2376,7 @@ export default function ConversationPage() {
 
                 {/* Prompt suggestion chips */}
                 <div className="relative z-10">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {/* <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-white/45">
                       Demo Presets
                     </span>
@@ -2390,7 +2390,7 @@ export default function ConversationPage() {
                         Preset {idx + 1}
                       </button>
                     ))}
-                  </div>
+                  </div> */}
                   <SuggestionChips
                     onSelect={(text) => {
                       setInputVal(text);
