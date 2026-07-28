@@ -4,6 +4,8 @@
 .env.*.local
 .env.example
 
+test.py
+
 # Logs
 logs
 *.log

@@ -1,14 +1,16 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import CustomCursor from './components/CustomCursor';
 import ConversationPage from './components/ConversationPage';
 import LandingPage from './components/LandingPage';
 
-export default function App() {
+function AppContent() {
+  const location = useLocation();
+
   return (
-    <BrowserRouter>
-      {/* Global decorative cursor */}
-      <CustomCursor />
+    <>
+      {/* Decorative cursor on Landing Page only */}
+      {location.pathname === '/landing' && <CustomCursor />}
 
       <Routes>
         {/* / → Welcome + Chat */}
@@ -20,6 +22,15 @@ export default function App() {
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }
+

@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Bookmark, Compass, LayoutGrid,
   MoreHorizontal, Mic, Settings2, MessageSquare,
-  ChevronDown, Sparkles, Brain, Cpu, Zap, Globe,
+  ChevronDown, ChevronRight, Sparkles, Brain, Cpu, Zap, Globe,
   Copy, Check, Paperclip, RefreshCw,
   Share2, ThumbsUp, ThumbsDown, Code,
   Download, Clock, X, FileText, Image as ImageIcon, File,
-  Trash2, Search, Volume2, VolumeX,
+  Trash2, Search, Volume2, VolumeX, Star, BarChart2, ArrowUp, Loader2,
 } from 'lucide-react';
 import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
@@ -22,8 +22,11 @@ import DualitySlider from "./DualitySlider";
 import SuggestionChips from "./SuggestionChips";
 import { analyzeSentiment } from "../services/sentiment";
 import { CodeBlock } from './ui/code-block';
+import InsightsPanel from './InsightsPanel';
 
 const PAGE_BG = 'var(--bg-base)'; // resolves to #020203
+const GREEN = '#22ff88';
+const GREEN_DIM = '#0f7a45';
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -99,7 +102,7 @@ function LogoMark({ size = 48 }) {
 /* ════════════════════════════════════════════════════════════════
    3. SIDEBAR
 ════════════════════════════════════════════════════════════════ */
-function Sidebar({ onNavigate, hasStarted = false }) {
+function Sidebar({ onNavigate, hasStarted = false, messages = [] }) {
   const navigate = useNavigate();
   const dockRef = useRef(null);
 
@@ -117,9 +120,9 @@ function Sidebar({ onNavigate, hasStarted = false }) {
   const dockItems = [
     { title: 'New Session', icon: <Plus className="h-full w-full" />, onClick: () => onNavigate('new') },
     { title: 'History', icon: <Bookmark className="h-full w-full" />, onClick: () => onNavigate('history') },
+    { title: 'Session Insights', icon: <BarChart2 className="h-full w-full" />, onClick: () => onNavigate('insights') },
+    { title: 'Export Chat', icon: <Download className="h-full w-full" />, onClick: () => onNavigate('export') },
     { title: 'Landing Page', icon: <Compass className="h-full w-full" />, onClick: () => navigate('/landing') },
-    { title: 'How It Works', icon: <Sparkles className="h-full w-full" />, onClick: () => navigate('/landing#how-it-works') },
-    { title: 'More', icon: <MoreHorizontal className="h-full w-full" />, onClick: () => { } },
   ];
 
   return (
@@ -446,6 +449,7 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
   const [isListening, setIsListening] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [justSent, setJustSent] = useState(false);
+  const [ripple, setRipple] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -616,10 +620,12 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 
   const handleSend = () => {
     if (!value.trim() && !attachments.length) return;
+    setRipple(true);
+    setTimeout(() => setRipple(false), 600);
     onSend(value, attachments);
     setAttachments([]);
     setJustSent(true);
-    setTimeout(() => setJustSent(false), 900);
+    setTimeout(() => setJustSent(false), 1400);
   };
 
   const canSend = value.trim().length > 0 || attachments.length > 0;
@@ -646,15 +652,32 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
           50% { transform: scaleY(1); }
         }
         .ib-bar { animation: ib-wave 0.9s ease-in-out infinite; transform-origin: center; }
-        @keyframes ib-send-pulse {
-          0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.35); }
-          70% { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
-          100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        @keyframes ringPulse {
+          0% { box-shadow: 0 0 0 0 rgba(34,255,136,0.55); }
+          100% { box-shadow: 0 0 0 16px rgba(34,255,136,0); }
         }
-        .ib-send-pulse { animation: ib-send-pulse 1.4s ease-out 1; }
+        @keyframes rippleExpand {
+          0% { transform: scale(0); opacity: 0.55; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+        .send-pulse-ring::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 10px;
+          animation: ringPulse 0.7s ease-out;
+        }
+        .send-ripple {
+          position: absolute;
+          inset: 0;
+          border-radius: 10px;
+          background: radial-gradient(circle, rgba(34,255,136,0.6) 0%, transparent 70%);
+          animation: rippleExpand 0.6s ease-out forwards;
+          pointer-events: none;
+        }
         @media (prefers-reduced-motion: reduce) {
           .ib-bar { animation: none; }
-          .ib-send-pulse { animation: none; }
+          .send-pulse-ring::after { animation: none; }
         }
       `}</style>
 
@@ -857,20 +880,6 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
         </div>
 
         <div className="flex items-center gap-2">
-          <motion.button
-            type="button"
-            onClick={handleVoiceDictation}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
-            title={isListening ? "Stop Listening" : "Voice Dictation"}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-              isListening
-                ? 'bg-red-500/20 border border-red-500/50 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
-                : 'bg-white/5 hover:bg-white/12 border border-white/10 text-white/70 hover:text-white'
-            }`}
-          >
-            <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse text-red-400' : ''}`} />
-          </motion.button>
           <FloatingActionButton
             size="sm"
             label="Quick Tools"
@@ -906,18 +915,26 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
             onClick={handleSend}
             disabled={!canSend}
             aria-label="Send"
-            whileHover={canSend ? { scale: 1.06 } : {}}
-            whileTap={canSend ? { scale: 0.9 } : {}}
-            animate={canSend ? { scale: 1 } : { scale: 1 }}
+            whileHover={canSend ? { scale: 1.08, y: -1 } : {}}
+            whileTap={canSend ? { scale: 0.88 } : {}}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             initial={false}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${justSent ? 'ib-send-pulse' : ''}`}
+            className={`relative w-9 h-9 rounded-[10px] flex items-center justify-center cursor-pointer overflow-hidden ${justSent ? 'send-pulse-ring' : ''}`}
             style={{
-              background: canSend ? '#ffffff' : 'rgba(255,255,255,0.05)',
-              border: canSend ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.08)',
-              boxShadow: canSend ? '0 0 12px rgba(255,255,255,0.25)' : 'none',
-              opacity: canSend ? 1 : 0.4,
+              background: canSend || justSent
+                ? `linear-gradient(155deg, ${GREEN}, ${GREEN_DIM})`
+                : 'rgba(255,255,255,0.05)',
+              border: canSend || justSent ? `1px solid ${GREEN}` : '1px solid rgba(255,255,255,0.08)',
+              boxShadow: canSend
+                ? `0 0 0 1px rgba(34,255,136,0.15), 0 4px 16px rgba(34,255,136,0.35), inset 0 1px 0 rgba(255,255,255,0.4)`
+                : 'none',
+              opacity: canSend || justSent ? 1 : 0.35,
+              transition: 'background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease',
             }}
           >
+            {ripple && <span className="send-ripple" />}
+
             <AnimatePresence mode="wait" initial={false}>
               {justSent ? (
                 <motion.span
@@ -927,16 +944,21 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
                   exit={{ scale: 0.4, opacity: 0 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 22 }}
                 >
-                  <Check className="w-4 h-4 text-black" strokeWidth={2} />
+                  <Check className="w-4 h-4 text-black" strokeWidth={2.5} />
                 </motion.span>
               ) : (
                 <motion.span
                   key="send"
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.6, opacity: 0 }}
+                  initial={{ scale: 0.5, opacity: 0, y: 4 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.5, opacity: 0, y: -6 }}
+                  whileHover={canSend ? { y: -2 } : {}}
+                  transition={{ type: 'spring', stiffness: 450, damping: 18 }}
                 >
-                  <MessageSquare className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`} strokeWidth={1.5} />
+                  <ArrowUp
+                    className={`w-4 h-4 ${canSend ? 'text-black' : 'text-white/30'}`}
+                    strokeWidth={2.5}
+                  />
                 </motion.span>
               )}
             </AnimatePresence>
@@ -950,7 +972,7 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 /* ════════════════════════════════════════════════════════════════
    8. AI MESSAGE — text directly on background, rich markdown
 ════════════════════════════════════════════════════════════════ */
-function AIMessage({ msg, thinkingMs, onRegenerate }) {
+function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar }) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(null);
   const [showMore, setShowMore] = useState(false);
@@ -1117,6 +1139,34 @@ function AIMessage({ msg, thinkingMs, onRegenerate }) {
             <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
           </ActionBtn>
 
+          {/* ── Star / Pin button ── */}
+          {!msg.isError && onStar && (
+            <button
+              onClick={() => onStar(msg)}
+              title={isStarred ? 'Remove from starred' : 'Star this response'}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+              style={{
+                color: isStarred ? '#fbbf24' : 'rgba(255,255,255,0.28)',
+                background: isStarred ? 'rgba(251,191,36,0.10)' : 'transparent',
+                border: isStarred ? '1px solid rgba(251,191,36,0.25)' : '1px solid transparent',
+              }}
+              onMouseEnter={e => {
+                if (!isStarred) {
+                  e.currentTarget.style.background = 'rgba(251,191,36,0.08)';
+                  e.currentTarget.style.color = '#fbbf24';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isStarred) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.28)';
+                }
+              }}
+            >
+              <Star className="w-3.5 h-3.5" fill={isStarred ? '#fbbf24' : 'none'} />
+            </button>
+          )}
+
           {/* ── Text-to-Speech button ── */}
           {!msg.isError && (
             <button
@@ -1276,6 +1326,222 @@ function TypingIndicator({ sentiment }) {
 
 
 /* ════════════════════════════════════════════════════════════════
+   10. EXPORT QUICK MENU — 3D Tilt & Glass Sheen
+════════════════════════════════════════════════════════════════ */
+function ExportQuickMenu({ isOpen, onClose, onExportMarkdown, onExportPDF, hasMessages }) {
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [hoveredItem, setHoveredItem] = useState(null);
+  const menuRef = useRef(null);
+
+  if (!isOpen) return null;
+
+  const handleMouseMove = (e) => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: py * -14, y: px * 14 });
+  };
+
+  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
+
+  const items = [
+    {
+      key: 'md',
+      label: 'Download as Markdown',
+      sub: '.md file',
+      icon: FileText,
+      accentColor: '#34d399',
+      onClick: () => { onExportMarkdown(); onClose(); },
+    },
+    {
+      key: 'pdf',
+      label: 'Print / Save as PDF',
+      sub: '.pdf file',
+      icon: Download,
+      accentColor: '#a78bfa',
+      onClick: () => { onExportPDF(); onClose(); },
+    },
+  ];
+
+  return (
+    <>
+      <style>{`
+        @keyframes panelPopIn {
+          0% {
+            opacity: 0;
+            transform: perspective(900px) rotateX(-18deg) rotateY(10deg) translateY(-50%) translateZ(-60px) scale(0.82);
+            filter: blur(6px);
+          }
+          60% {
+            opacity: 1;
+            transform: perspective(900px) rotateX(4deg) rotateY(-2deg) translateY(-50%) translateZ(10px) scale(1.02);
+            filter: blur(0px);
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(-50%) translateZ(0px) scale(1);
+            filter: blur(0px);
+          }
+        }
+        @keyframes itemSlideIn {
+          0% { opacity: 0; transform: translateX(-14px) translateZ(-20px); }
+          100% { opacity: 1; transform: translateX(0) translateZ(0); }
+        }
+        @keyframes backdropFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes sheen {
+          0% { transform: translateX(-120%) skewX(-20deg); }
+          100% { transform: translateX(220%) skewX(-20deg); }
+        }
+        .menu-item {
+          position: relative;
+          transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
+          transform-style: preserve-3d;
+        }
+        .menu-item:hover:not(:disabled) {
+          background: rgba(255,255,255,0.07) !important;
+          transform: translateX(4px) translateZ(18px);
+        }
+        .menu-item:active:not(:disabled) {
+          transform: translateX(2px) translateZ(10px) scale(0.985);
+        }
+        .menu-item-icon {
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
+        }
+        .menu-item:hover:not(:disabled) .menu-item-icon {
+          transform: scale(1.16) translateZ(8px);
+          filter: drop-shadow(0 0 6px rgba(255,255,255,0.35));
+        }
+        .menu-item-chevron {
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+          opacity: 0;
+          transform: translateX(-6px);
+        }
+        .menu-item:hover:not(:disabled) .menu-item-chevron {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      `}</style>
+
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[150]"
+        style={{
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          animation: 'backdropFade 0.25s ease forwards',
+        }}
+        onClick={onClose}
+      />
+
+      {/* Menu Container */}
+      <div
+        ref={menuRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="fixed left-4 md:left-20 top-1/2 z-[151] rounded-2xl overflow-hidden shadow-2xl"
+        style={{
+          background: 'linear-gradient(155deg, rgba(20,20,20,0.98), rgba(4,4,4,0.99))',
+          border: '1px solid rgba(255,255,255,0.16)',
+          minWidth: 230,
+          transformOrigin: 'left center',
+          animation: 'panelPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          transform: `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-50%)`,
+          transition: 'transform 0.15s ease-out',
+          boxShadow: `
+            0 30px 60px -12px rgba(0,0,0,0.9),
+            0 0 0 1px rgba(255,255,255,0.04),
+            inset 0 1px 0 rgba(255,255,255,0.08),
+            inset 0 0 40px rgba(255,255,255,0.02)
+          `,
+        }}
+      >
+        {/* sheen sweep across the top edge */}
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden opacity-40 select-none"
+          style={{ mixBlendMode: 'overlay' }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '40%',
+              height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+              animation: 'sheen 2.4s ease-in-out infinite',
+              animationDelay: '0.6s',
+            }}
+          />
+        </div>
+
+        <div
+          className="px-4 py-3 flex items-center justify-between relative"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <p className="text-[11px] font-mono text-white/45 uppercase tracking-wider">
+            Export chat
+          </p>
+          <button
+            onClick={onClose}
+            className="text-white/30 hover:text-white/80 transition-colors cursor-pointer"
+            style={{ transition: 'transform 0.2s ease, color 0.2s ease' }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'rotate(90deg)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'rotate(0deg)')}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="py-1.5 relative">
+          {items.map((item, i) => {
+            const Icon = item.icon;
+            const disabled = !hasMessages;
+            return (
+              <button
+                key={item.key}
+                onClick={item.onClick}
+                disabled={disabled}
+                onMouseEnter={() => setHoveredItem(item.key)}
+                onMouseLeave={() => setHoveredItem(null)}
+                className="menu-item w-full text-left px-4 py-3 text-[13px] text-white/70 hover:text-white flex items-center gap-3 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  animation: `itemSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards`,
+                  animationDelay: `${0.15 + i * 0.07}s`,
+                  opacity: 0,
+                }}
+              >
+                <span
+                  className="menu-item-icon flex items-center justify-center rounded-lg"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: hoveredItem === item.key ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5" style={{ color: item.accentColor }} />
+                </span>
+                <span className="flex flex-col leading-tight flex-1">
+                  <span>{item.label}</span>
+                  <span className="text-[10px] text-white/30 font-mono">{item.sub}</span>
+                </span>
+                <ChevronRight className="menu-item-chevron w-3 h-3 text-white/40" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
    11. CONVERSATION PAGE — main export
 ════════════════════════════════════════════════════════════════ */
 export default function ConversationPage() {
@@ -1290,6 +1556,105 @@ export default function ConversationPage() {
   const [activeProvider, setActiveProvider] = useState('groq');
   const [dualityRatio, setDualityRatio] = useState(50); // 0-100, logic%
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Starred messages — persisted to localStorage
+  const [starredMessages, setStarredMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mindbot_starred');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const persistStarred = useCallback((updated) => {
+    setStarredMessages(updated);
+    try { localStorage.setItem('mindbot_starred', JSON.stringify(updated)); } catch { }
+  }, []);
+
+  const handleStar = useCallback((msg) => {
+    setStarredMessages(prev => {
+      const exists = prev.find(m => m.id === msg.id);
+      const updated = exists ? prev.filter(m => m.id !== msg.id) : [msg, ...prev];
+      try { localStorage.setItem('mindbot_starred', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+  }, []);
+
+  const handleUnstar = useCallback((msgId) => {
+    setStarredMessages(prev => {
+      const updated = prev.filter(m => m.id !== msgId);
+      try { localStorage.setItem('mindbot_starred', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+  }, []);
+
+  // Export chat — markdown download
+  const exportAsMarkdown = useCallback(() => {
+    if (!messages.length) return;
+    const lines = [];
+    lines.push(`# SYNAPTICA Chat Export`);
+    lines.push(`> Session: ${new Date().toLocaleString()}`);
+    lines.push(`> Mode: ${activeMode} | Provider: ${activeProvider}`);
+    lines.push('');
+    messages.forEach(msg => {
+      if (msg.sender === 'user') {
+        lines.push(`## 🧑 You — ${msg.time || ''}`);
+        lines.push(msg.text || '');
+        lines.push('');
+      } else if (msg.sender === 'synaptica') {
+        lines.push(`## 🤖 Synaptica — ${msg.time || ''}`);
+        if (msg.modeName) lines.push(`*Mode: ${msg.modeName}*`);
+        lines.push('');
+        lines.push(msg.text || '');
+        if (msg.aiReasoning) {
+          lines.push('');
+          lines.push(`> **⚡ AI Reasoning:** ${msg.aiReasoning}`);
+        }
+        if (msg.humanInsight) {
+          lines.push(`> **🫀 Human Insight:** ${msg.humanInsight}`);
+        }
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      }
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `synaptica-chat-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [messages, activeMode, activeProvider]);
+
+  // Export chat — print / PDF
+  const exportAsPDF = useCallback(() => {
+    if (!messages.length) return;
+    const content = messages.map(msg => {
+      if (msg.sender === 'user') {
+        return `<div style="margin:18px 0"><strong style="color:#888">You</strong><br/><p style="margin:6px 0">${(msg.text || '').replace(/\n/g, '<br/>')}</p></div>`;
+      }
+      return `<div style="margin:18px 0;padding:14px;background:#0a0a12;border-radius:10px;border:1px solid #222">
+        <strong style="color:#a78bfa">Synaptica</strong> <small style="color:#555">${msg.modeName || ''}</small><br/>
+        <p style="margin:8px 0;color:#ddd">${(msg.text || '').replace(/```[\s\S]*?```/g, '[code block]').replace(/\n/g, '<br/>')}</p>
+        ${msg.aiReasoning ? `<p style="margin:6px 0;color:#888;font-size:12px">⚡ ${msg.aiReasoning}</p>` : ''}
+        ${msg.humanInsight ? `<p style="margin:6px 0;color:#888;font-size:12px">🫀 ${msg.humanInsight}</p>` : ''}
+      </div>`;
+    }).join('');
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Synaptica Export</title><style>
+      body{background:#030304;color:#e5e5e5;font-family:Inter,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;font-size:14px;line-height:1.7}
+      @media print{body{background:#fff;color:#111}}
+    </style></head><body>
+      <h1 style="color:#a78bfa;font-size:20px;margin-bottom:4px">SYNAPTICA – Chat Export</h1>
+      <p style="color:#555;font-size:12px;margin-bottom:28px">${new Date().toLocaleString()} · ${activeMode} · ${activeProvider}</p>
+      ${content}
+    </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  }, [messages, activeMode, activeProvider]);
 
   const inputWrapRef = useRef(null);
 
@@ -1395,15 +1760,9 @@ export default function ConversationPage() {
     if (!rawText && (!attachments || attachments.length === 0)) return;
     setInputVal('');
 
-    // Choreographed welcome → chat transition on the FIRST message
+    // Instantly transition to chat mode
     if (!hasStarted) {
-      setTransitioning(true);
-      // Let the welcome exit animations play (~400ms), then flip to chat
-      await new Promise(r => setTimeout(r, 420));
       setHasStarted(true);
-      // Small extra breather so chat entrance begins cleanly
-      await new Promise(r => setTimeout(r, 80));
-      setTransitioning(false);
     }
 
     const startTime = Date.now();
@@ -1444,12 +1803,6 @@ export default function ConversationPage() {
     try {
       const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider, undefined, effectiveRatio);
 
-      const elapsed = Date.now() - startTime;
-      const minDelay = 1800;
-      if (elapsed < minDelay) {
-        await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
-      }
-
       setIsTyping(false);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
@@ -1466,8 +1819,6 @@ export default function ConversationPage() {
       }]);
     } catch (err) {
       console.error('[MindBot] Send error:', err);
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed));
       setIsTyping(false);
 
       // Determine a helpful error message based on the error type
@@ -1562,8 +1913,14 @@ export default function ConversationPage() {
         onNavigate={action => {
           if (action === 'new') resetSession();
           if (action === 'history') setShowHistoryDrawer(true);
+          if (action === 'insights') setShowInsights(true);
+          if (action === 'export') {
+            // Show export mini-menu (handled inline below)
+            setShowExportMenu(v => !v);
+          }
         }}
         hasStarted={hasStarted}
+        messages={messages}
       />
 
       <HistoryDrawer
@@ -1573,114 +1930,135 @@ export default function ConversationPage() {
         onLoadSession={loadSession}
         onDeleteSession={deleteSession}
         onClearAll={clearAllSessions}
+        starredMessages={starredMessages}
+        onUnstar={handleUnstar}
       />
 
+      <InsightsPanel
+        isOpen={showInsights}
+        onClose={() => setShowInsights(false)}
+        messages={messages}
+      />
+
+      <ExportQuickMenu
+        isOpen={showExportMenu}
+        onClose={() => setShowExportMenu(false)}
+        onExportMarkdown={exportAsMarkdown}
+        onExportPDF={exportAsPDF}
+        hasMessages={messages.length > 0}
+      />
+
+
+
+
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
-
-        {/* ── WELCOME SCREEN ── */}
-        {!hasStarted && (
-          <div
-            className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20 sm:pb-12"
-          >
-            {/* Logo */}
+        <AnimatePresence mode="wait">
+          {/* ── WELCOME SCREEN ── */}
+          {!hasStarted ? (
             <motion.div
-              initial={{ opacity: 0, scale: 0.75 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.05, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              className={`mb-5 sm:mb-7 ${transitioning ? 'cp-exit-logo' : ''}`}
+              key="welcome"
+              initial={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, y: -16, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-20 sm:pb-12"
             >
-              <LogoMark size={36} />
-            </motion.div>
-
-            {/* Headline */}
-            <motion.h1
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.5 }}
-              className={`text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2 ${transitioning ? 'cp-exit-title' : ''}`}
-              style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}
-            >
-              What can I help you<br /><span style={{ opacity: 0.45 }}>explore today?</span>
-            </motion.h1>
-
-            {/* Input Box — slides up & blurs out */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22, duration: 0.5 }}
-              className={`w-full max-w-2xl mb-5 px-1 sm:px-0 ${transitioning ? 'cp-exit-input' : ''}`}
-            >
-              <InputBox
-                value={inputVal} onChange={setInputVal}
-                onSend={sendMessage} large
-                activeMode={activeMode} onModeChange={setActiveMode}
-                activeProvider={activeProvider} onProviderChange={setActiveProvider}
-              />
-            </motion.div>
-
-            {/* Duality Slider + Suggestion Chips */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.32, duration: 0.5 }}
-              className={`w-full max-w-2xl space-y-5 px-1 sm:px-0 ${transitioning ? 'cp-exit-extras' : ''}`}
-            >
-              {/* Duality ratio slider container with Model Selector above it */}
-              <div
-                className="p-3.5 sm:p-4 rounded-2xl space-y-3.5 relative z-30 overflow-visible"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(12px)',
-                }}
+              {/* Logo */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.75 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="mb-5 sm:mb-7"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] sm:text-xs font-mono font-semibold text-white/50 uppercase tracking-wider">
-                      AI Model:
-                    </span>
-                    <ModelSelector
-                      activeProvider={activeProvider}
-                      onProviderChange={setActiveProvider}
-                      isDropUp={false}
-                    />
+                <LogoMark size={36} />
+              </motion.div>
+
+              {/* Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+                className="text-3xl sm:text-4xl lg:text-5xl font-light text-white text-center mb-7 sm:mb-10 px-2"
+                style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}
+              >
+                What can I help you<br /><span style={{ opacity: 0.45 }}>explore today?</span>
+              </motion.h1>
+
+              {/* Input Box */}
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
+                className="w-full max-w-2xl mb-5 px-1 sm:px-0"
+              >
+                <InputBox
+                  value={inputVal} onChange={setInputVal}
+                  onSend={sendMessage} large
+                  activeMode={activeMode} onModeChange={setActiveMode}
+                  activeProvider={activeProvider} onProviderChange={setActiveProvider}
+                />
+              </motion.div>
+
+              {/* Duality Slider + Suggestion Chips */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="w-full max-w-2xl space-y-5 px-1 sm:px-0"
+              >
+                {/* Duality ratio slider container with Model Selector above it */}
+                <div
+                  className="p-3.5 sm:p-4 rounded-2xl space-y-3.5 relative z-30 overflow-visible"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] sm:text-xs font-mono font-semibold text-white/50 uppercase tracking-wider">
+                        AI Model:
+                      </span>
+                      <ModelSelector
+                        activeProvider={activeProvider}
+                        onProviderChange={setActiveProvider}
+                        isDropUp={false}
+                      />
+                    </div>
+                    <button
+                      onClick={() => setDualityRatio(50)}
+                      className="text-[10px] text-white/40 hover:text-white font-mono px-2 py-1 rounded-lg bg-white/5 border border-white/10 transition-colors cursor-pointer"
+                    >
+                      Reset 50/50
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setDualityRatio(50)}
-                    className="text-[10px] text-white/40 hover:text-white font-mono px-2 py-1 rounded-lg bg-white/5 border border-white/10 transition-colors cursor-pointer"
-                  >
-                    Reset 50/50
-                  </button>
+
+                  <DualitySlider
+                    value={dualityRatio}
+                    onChange={setDualityRatio}
+                    disabled={false}
+                  />
                 </div>
 
-                <DualitySlider
-                  value={dualityRatio}
-                  onChange={setDualityRatio}
-                  disabled={false}
-                />
-              </div>
-
-              {/* Prompt suggestion chips */}
-              <div className="relative z-10">
-                <SuggestionChips
-                  onSelect={(text) => {
-                    setInputVal(text);
-                  }}
-                  count={6}
-                />
-              </div>
+                {/* Prompt suggestion chips */}
+                <div className="relative z-10">
+                  <SuggestionChips
+                    onSelect={(text) => {
+                      setInputVal(text);
+                    }}
+                    count={6}
+                  />
+                </div>
+              </motion.div>
             </motion.div>
-          </div>
-        )}
-
-        {/* ── ACTIVE CONVERSATION ── */}
-        <AnimatePresence>
-          {hasStarted && (
+          ) : (
+            /* ── ACTIVE CONVERSATION ── */
             <motion.div
               key="chat"
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="flex-1 flex flex-col overflow-hidden"
             >
 
@@ -1701,7 +2079,8 @@ export default function ConversationPage() {
                       const handleRegenerate = prevUserMsg
                         ? () => regenerateMessage(msg.id, prevUserMsg.text, messages.slice(0, idx))
                         : undefined;
-                      return <AIMessage key={msg.id} msg={msg} thinkingMs={msg.thinkingMs} onRegenerate={handleRegenerate} />;
+                      const isStarred = starredMessages.some(s => s.id === msg.id);
+                      return <AIMessage key={msg.id} msg={msg} thinkingMs={msg.thinkingMs} onRegenerate={handleRegenerate} isStarred={isStarred} onStar={handleStar} />;
                     })}
                     {isTyping && <TypingIndicator sentiment={messages.find(m => m.sender === 'user' && m.id === messages[messages.length - 1]?.id)?.sentiment} />}
                     <div ref={chatEndRef} />
