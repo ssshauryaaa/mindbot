@@ -4,6 +4,7 @@
  * Provides high-speed LLM responses (e.g. Llama 3.3 70B) with multi-turn conversation context.
  */
 
+import { fetchJsonWithTimeout } from './requestUtils.js';
 const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -80,7 +81,7 @@ export async function getGroqSynthesizedResponse(userPrompt, history = [], activ
       content: userPrompt,
     });
 
-    const res = await fetch(GROQ_API_URL, {
+    const res = await fetchJsonWithTimeout(GROQ_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,6 +94,10 @@ export async function getGroqSynthesizedResponse(userPrompt, history = [], activ
         max_tokens: 2048,
         response_format: { type: 'json_object' },
       }),
+    }, {
+      timeoutMs: 12000,
+      retries: 1,
+      timeoutLabel: 'Groq request timed out. Please try again.',
     });
 
     if (!res.ok) {

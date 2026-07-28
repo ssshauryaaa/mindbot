@@ -6,6 +6,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { generateSmartResponse } from './fallback.js';
+import { retryAsync, withTimeout } from './requestUtils.js';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -75,15 +76,19 @@ export async function getSynthesizedResponse(userPrompt, history = [], activeMod
       parts: [{ text: userPrompt }],
     });
 
-    const response = await ai.models.generateContent({
-      model: 'models/gemini-3.6-flash',
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION_BASE + modeInstruction,
-        temperature: activeMode === 'Pure Logic' ? 0.35 : activeMode === 'Human Empathy' ? 0.85 : 0.7,
-        responseMimeType: 'application/json',
-      },
-      contents,
-    });
+    const response = await retryAsync(async () => await withTimeout(
+      async () => await ai.models.generateContent({
+        model: 'models/gemini-3.6-flash',
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION_BASE + modeInstruction,
+          temperature: activeMode === 'Pure Logic' ? 0.35 : activeMode === 'Human Empathy' ? 0.85 : 0.7,
+          responseMimeType: 'application/json',
+        },
+        contents,
+      }),
+      12000,
+      'Gemini request timed out. Please try again.'
+    ), 1, 450);
 
     const rawText = response.text;
     if (!rawText) throw new Error('Empty response from Gemini');

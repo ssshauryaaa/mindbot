@@ -5,6 +5,7 @@
  * Endpoint: https://openrouter.ai/api/v1/chat/completions
  */
 
+import { fetchJsonWithTimeout } from './requestUtils.js';
 const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -96,7 +97,7 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
     try {
       console.log(`[MindBot] OpenRouter: trying model ${attemptedCount}/${modelsToTry.length} → ${currentModel}`);
 
-      const res = await fetch(OPENROUTER_API_URL, {
+      const res = await fetchJsonWithTimeout(OPENROUTER_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,6 +111,10 @@ export async function getOpenRouterSynthesizedResponse(userPrompt, history = [],
           temperature: activeMode.includes('Logic') ? 0.35 : activeMode.includes('Empathy') ? 0.85 : 0.7,
           max_tokens: 2048,
         }),
+      }, {
+        timeoutMs: 12000,
+        retries: 1,
+        timeoutLabel: `OpenRouter model "${currentModel}" timed out`,
       });
 
       // Skip to next model on rate-limit or model unavailable

@@ -117,7 +117,7 @@ export default function LandingPage() {
           {/* Top Section — Signature Logo, moved down a bit */}
           <div className="w-full flex justify-center pt-10 sm:pt-20 pointer-events-auto translate-y-20">
             <Signature
-              text="PyroBot"
+              text="Pyrobot"
               fontSize={isMobile ? 52 : 110}
               color="#ffffff"
               duration={2.5}

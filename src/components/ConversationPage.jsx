@@ -15,6 +15,7 @@ import { FloatingDock } from './ui/floating-dock';
 import AITextLoading from './ui/ai-text-loading';
 import FloatingActionButton from './ui/floating-action-button';
 import { getSynthesizedResponse } from '../services/aiProvider';
+import { generateSmartResponse } from '../services/fallback.js';
 
 import PremiumDualityMeter from "./DualityMeter";
 import UserMessage from "./UserMessage";
@@ -32,6 +33,11 @@ const GREEN_DIM = '#0f7a45';
 // WhatsApp number Synaptica runs on — shown in the WhatsApp quick menu below.
 const WHATSAPP_DISPLAY_NUMBER = '+1 (555) 659-1524';
 const WHATSAPP_DIAL_NUMBER = '15556591524'; // digits only, for wa.me links
+const DEMO_PRESETS = [
+  'I am in Class 10 and confused between PCM and Commerce. Ask me 4 diagnostic questions, then recommend a stream with reasons.',
+  'I feel exam stress and low confidence. Give me a 7-day practical recovery plan with daily milestones.',
+  'Create a balanced 12-week roadmap for becoming job-ready in AI + communication skills after Class 12.',
+];
 
 /* ════════════════════════════════════════════════════════════════
    1. BACKGROUND — video + wave lines + particles
@@ -1050,7 +1056,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
   }, []);
 
   const shareResponse = async () => {
-    const shareData = { title: 'Synaptica Response', text: msg.text };
+    const shareData = { title: 'SYNAPTICA by Pyrobot', text: msg.text };
     if (navigator.share && navigator.canShare?.(shareData)) {
       try { await navigator.share(shareData); return; } catch { }
     }
@@ -1070,7 +1076,7 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pyro-${Date.now()}.txt`;
+    a.download = `pyrobot-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1092,6 +1098,16 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
   const thinkingLabel = thinkingMs != null
     ? `Thought for ${Math.round(thinkingMs / 1000)} Second${Math.round(thinkingMs / 1000) !== 1 ? 's' : ''}`
     : null;
+  const providerLabel = msg.provider === 'groq'
+    ? 'Groq'
+    : msg.provider === 'openrouter'
+      ? 'OpenRouter'
+      : msg.provider === 'grok'
+        ? 'Grok'
+        : msg.provider === 'fallback'
+          ? 'Local Fallback'
+          : 'Gemini';
+  const latencyLabel = msg.thinkingMs != null ? `${Math.max(1, Math.round(msg.thinkingMs))}ms` : null;
 
   return (
     <motion.div
@@ -1112,6 +1128,49 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
           </div>
         </div>
       )}
+
+      {/* Runtime metadata chips for judging clarity */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/55"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
+          <Sparkles className="w-3 h-3" />
+          <span>{providerLabel}</span>
+        </div>
+        {msg.modelUsed && (
+          <div
+            className="px-2.5 py-1 rounded-md text-xs text-white/50"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {msg.modelUsed}
+          </div>
+        )}
+        {msg.modeName && (
+          <div
+            className="px-2.5 py-1 rounded-md text-xs text-white/50"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {msg.modeName}
+          </div>
+        )}
+        {latencyLabel && (
+          <div
+            className="px-2.5 py-1 rounded-md text-xs text-white/50"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {latencyLabel}
+          </div>
+        )}
+        {msg.isFallback && (
+          <div
+            className="px-2.5 py-1 rounded-md text-xs font-medium text-emerald-200"
+            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}
+          >
+            Local Fallback Active
+          </div>
+        )}
+      </div>
 
       {/* Main response — rendered directly on background */}
       <div className="max-w-3xl space-y-1" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -1692,7 +1751,7 @@ function WhatsAppQuickMenu({ isOpen, onClose }) {
                 className="text-[13px] text-white/60 leading-relaxed mb-3.5"
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
-                PyroBot runs on WhatsApp too — same duality engine, no app to open. Text this number to start:
+                SYNAPTICA by Pyrobot runs on WhatsApp too — same duality engine, no app to open. Text this number to start:
               </p>
 
               <div
@@ -1767,6 +1826,7 @@ export default function ConversationPage() {
   const [showInsights, setShowInsights] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showWhatsAppMenu, setShowWhatsAppMenu] = useState(false);
+  const [safeDemoMode, setSafeDemoMode] = useState(false);
 
   // Starred messages — persisted to localStorage
   const [starredMessages, setStarredMessages] = useState(() => {
@@ -1802,7 +1862,7 @@ export default function ConversationPage() {
   const exportAsMarkdown = useCallback(() => {
     if (!messages.length) return;
     const lines = [];
-    lines.push(`# PyroBot Chat Export`);
+    lines.push(`# Pyrobot Chat Export`);
     lines.push(`> Session: ${new Date().toLocaleString()}`);
     lines.push(`> Mode: ${activeMode} | Provider: ${activeProvider}`);
     lines.push('');
@@ -1812,7 +1872,7 @@ export default function ConversationPage() {
         lines.push(msg.text || '');
         lines.push('');
       } else if (msg.sender === 'synaptica') {
-        lines.push(`## 🤖 PyroBot — ${msg.time || ''}`);
+        lines.push(`## 🤖 SYNAPTICA — ${msg.time || ''}`);
         if (msg.modeName) lines.push(`*Mode: ${msg.modeName}*`);
         lines.push('');
         lines.push(msg.text || '');
@@ -1832,7 +1892,7 @@ export default function ConversationPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `PyroBot-chat-${Date.now()}.md`;
+    a.download = `Pyrobot-chat-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }, [messages, activeMode, activeProvider]);
@@ -1845,7 +1905,7 @@ export default function ConversationPage() {
         return `<div style="margin:18px 0"><strong style="color:#888">You</strong><br/><p style="margin:6px 0">${(msg.text || '').replace(/\n/g, '<br/>')}</p></div>`;
       }
       return `<div style="margin:18px 0;padding:14px;background:#0a0a12;border-radius:10px;border:1px solid #222">
-        <strong style="color:#a78bfa">PyroBot</strong> <small style="color:#555">${msg.modeName || ''}</small><br/>
+        <strong style="color:#a78bfa">SYNAPTICA</strong> <small style="color:#555">${msg.modeName || ''}</small><br/>
         <p style="margin:8px 0;color:#ddd">${(msg.text || '').replace(/```[\s\S]*?```/g, '[code block]').replace(/\n/g, '<br/>')}</p>
         ${msg.aiReasoning ? `<p style="margin:6px 0;color:#888;font-size:12px">⚡ ${msg.aiReasoning}</p>` : ''}
         ${msg.humanInsight ? `<p style="margin:6px 0;color:#888;font-size:12px">🫀 ${msg.humanInsight}</p>` : ''}
@@ -1853,11 +1913,11 @@ export default function ConversationPage() {
     }).join('');
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>PyroBot Export</title><style>
+    win.document.write(`<!DOCTYPE html><html><head><title>Pyrobot Export</title><style>
       body{background:#030304;color:#e5e5e5;font-family:Inter,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;font-size:14px;line-height:1.7}
       @media print{body{background:#fff;color:#111}}
     </style></head><body>
-      <h1 style="color:#a78bfa;font-size:20px;margin-bottom:4px">PyroBot – Chat Export</h1>
+      <h1 style="color:#a78bfa;font-size:20px;margin-bottom:4px">Pyrobot – Chat Export</h1>
       <p style="color:#555;font-size:12px;margin-bottom:28px">${new Date().toLocaleString()} · ${activeMode} · ${activeProvider}</p>
       ${content}
     </body></html>`);
@@ -2010,7 +2070,8 @@ export default function ConversationPage() {
     setIsTyping(true);
 
     try {
-      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, activeProvider, undefined, effectiveRatio);
+      const providerToUse = safeDemoMode ? 'openrouter' : activeProvider;
+      const response = await getSynthesizedResponse(promptForAI, messages, activeMode, providerToUse, undefined, effectiveRatio, { safeDemoMode });
 
       setIsTyping(false);
       setMessages(prev => [...prev, {
@@ -2022,7 +2083,9 @@ export default function ConversationPage() {
         logicRatio: response.logicRatio,
         empathyRatio: response.empathyRatio,
         modeName: response.modeName || activeMode,
-        provider: response.provider || activeProvider,
+        provider: response.provider || providerToUse,
+        modelUsed: response.modelUsed,
+        isFallback: Boolean(response.isFallback),
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
@@ -2035,16 +2098,32 @@ export default function ConversationPage() {
       const providerLabel = activeProvider === 'groq' ? 'Groq' : activeProvider === 'openrouter' ? 'OpenRouter' : activeProvider === 'grok' ? 'Grok (xAI)' : 'Gemini';
       const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'openrouter' ? 'VITE_OPENROUTER_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
 
-      const errorText = isAuthError
-        ? `⚠️ API key error — the ${providerLabel} API key in your .env file appears invalid or missing. Please add a valid \`${envKey}\` and restart the dev server.`
-        : `⚠️ Something went wrong connecting to ${providerLabel}. Check the browser console for details (F12 → Console). Error: ${err?.message || 'Unknown error'}`;
+      if (isAuthError) {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'synaptica',
+          text: `⚠️ API key error — the ${providerLabel} API key in your .env file appears invalid or missing. Please add a valid \`${envKey}\` and restart the dev server.`,
+          provider: activeProvider,
+          isError: true,
+          thinkingMs: Date.now() - startTime,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+        return;
+      }
 
+      const fallback = generateSmartResponse(promptForAI, [...messages, userMsgObj]);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'synaptica',
-        text: errorText,
-        provider: activeProvider,
-        isError: true,
+        text: fallback.text,
+        aiReasoning: fallback.aiReasoning,
+        humanInsight: fallback.humanInsight,
+        logicRatio: 55,
+        empathyRatio: 45,
+        modeName: 'Safe Fallback',
+        provider: 'fallback',
+        modelUsed: 'local-context-engine',
+        isFallback: true,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
@@ -2061,7 +2140,8 @@ export default function ConversationPage() {
 
     const startTime = Date.now();
     try {
-      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg, activeMode, activeProvider, undefined, dualityRatio);
+      const providerToUse = safeDemoMode ? 'openrouter' : activeProvider;
+      const response = await getSynthesizedResponse(userPrompt, historyBeforeMsg, activeMode, providerToUse, undefined, dualityRatio, { safeDemoMode });
       const elapsed = Date.now() - startTime;
       if (elapsed < 1200) await new Promise(r => setTimeout(r, 1200 - elapsed));
 
@@ -2075,7 +2155,9 @@ export default function ConversationPage() {
         logicRatio: response.logicRatio,
         empathyRatio: response.empathyRatio,
         modeName: response.modeName || activeMode,
-        provider: response.provider || activeProvider,
+        provider: response.provider || providerToUse,
+        modelUsed: response.modelUsed,
+        isFallback: Boolean(response.isFallback),
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
@@ -2084,14 +2166,32 @@ export default function ConversationPage() {
       setIsTyping(false);
       const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('API key') || err?.message?.includes('INVALID_ARGUMENT');
       const envKey = activeProvider === 'groq' ? 'VITE_GROQ_API_KEY' : activeProvider === 'openrouter' ? 'VITE_OPENROUTER_API_KEY' : activeProvider === 'grok' ? 'VITE_GROK_API_KEY' : 'VITE_GEMINI_API_KEY';
+      if (isAuthError) {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'synaptica',
+          text: `⚠️ API key error — please check your \`${envKey}\` in .env.`,
+          provider: activeProvider,
+          isError: true,
+          thinkingMs: Date.now() - startTime,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+        return;
+      }
+
+      const fallback = generateSmartResponse(userPrompt, historyBeforeMsg);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'synaptica',
-        text: isAuthError
-          ? `⚠️ API key error — please check your \`${envKey}\` in .env.`
-          : `⚠️ Regeneration failed. Check the browser console (F12) for details.`,
-        provider: activeProvider,
-        isError: true,
+        text: fallback.text,
+        aiReasoning: fallback.aiReasoning,
+        humanInsight: fallback.humanInsight,
+        logicRatio: 55,
+        empathyRatio: 45,
+        modeName: 'Safe Fallback',
+        provider: 'fallback',
+        modelUsed: 'local-context-engine',
+        isFallback: true,
         thinkingMs: Date.now() - startTime,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
@@ -2250,6 +2350,23 @@ export default function ConversationPage() {
                     </button>
                   </div>
 
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] sm:text-xs font-mono font-semibold text-white/50 uppercase tracking-wider">
+                      Safe Demo Mode
+                    </span>
+                    <button
+                      onClick={() => setSafeDemoMode(v => !v)}
+                      className="text-[10px] text-white/75 hover:text-white font-mono px-2.5 py-1 rounded-lg border transition-colors cursor-pointer"
+                      style={{
+                        background: safeDemoMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                        borderColor: safeDemoMode ? 'rgba(16,185,129,0.45)' : 'rgba(255,255,255,0.12)',
+                      }}
+                      title="When enabled, Pyrobot prioritizes resilient routing and local fallback continuity."
+                    >
+                      {safeDemoMode ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+
                   <DualitySlider
                     value={dualityRatio}
                     onChange={setDualityRatio}
@@ -2259,6 +2376,21 @@ export default function ConversationPage() {
 
                 {/* Prompt suggestion chips */}
                 <div className="relative z-10">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-white/45">
+                      Demo Presets
+                    </span>
+                    {DEMO_PRESETS.map((preset, idx) => (
+                      <button
+                        key={preset}
+                        onClick={() => setInputVal(preset)}
+                        className="text-[10px] sm:text-[11px] px-2 py-1 rounded-lg border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                        title={preset}
+                      >
+                        Preset {idx + 1}
+                      </button>
+                    ))}
+                  </div>
                   <SuggestionChips
                     onSelect={(text) => {
                       setInputVal(text);

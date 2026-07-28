@@ -42,8 +42,8 @@ async function getAIResponse(userMessage) {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${API_KEY.trim()}`,
-          'HTTP-Referer': 'https://mindbot.vercel.app',
-          'X-Title': 'Synaptica WhatsApp Bot',
+          'HTTP-Referer': 'https://pyrobot-chat.vercel.app',
+          'X-Title': 'Pyrobot WhatsApp Bot',
         },
         body: JSON.stringify({
           model,

@@ -4,7 +4,7 @@
  * Provides real Grok AI responses with multi-turn conversation context.
  */
 
-import { generateSmartResponse } from './fallback.js';
+import { fetchJsonWithTimeout } from './requestUtils.js';
 
 const API_KEY = import.meta.env.VITE_GROK_API_KEY || import.meta.env.VITE_XAI_API_KEY;
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
@@ -80,7 +80,7 @@ export async function getGrokSynthesizedResponse(userPrompt, history = [], activ
       content: userPrompt,
     });
 
-    const res = await fetch(GROK_API_URL, {
+    const res = await fetchJsonWithTimeout(GROK_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,6 +92,10 @@ export async function getGrokSynthesizedResponse(userPrompt, history = [], activ
         temperature: activeMode.includes('Logic') ? 0.35 : activeMode.includes('Empathy') ? 0.85 : 0.7,
         response_format: { type: 'json_object' },
       }),
+    }, {
+      timeoutMs: 12000,
+      retries: 1,
+      timeoutLabel: 'Grok request timed out. Please try again.',
     });
 
     if (!res.ok) {
