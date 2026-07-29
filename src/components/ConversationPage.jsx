@@ -26,11 +26,15 @@ import { analyzeSentiment } from "../services/sentiment";
 import { CodeBlock } from './ui/code-block';
 import InsightsPanel from './InsightsPanel';
 
+// ── Math rendering (KaTeX) ──────────────────────────────────────────
+// npm install katex
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+
 const PAGE_BG = 'var(--bg-base)'; // resolves to #020203
 const GREEN = '#22ff88';
 const GREEN_DIM = '#0f7a45';
 
-// WhatsApp number Synaptica runs on — shown in the WhatsApp quick menu below.
 const WHATSAPP_DISPLAY_NUMBER = '+1 (555) 659-1524';
 const WHATSAPP_DIAL_NUMBER = '15556591524'; // digits only, for wa.me links
 const DEMO_PRESETS = [
@@ -85,9 +89,6 @@ function BeamBackground() {
   );
 }
 
-/* ════════════════════════════════════════════════════════════════
-   2. LOGO MARK
-════════════════════════════════════════════════════════════════ */
 function LogoMark({ size = 48 }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: size * 1.8, height: size * 1.8 }}>
@@ -201,34 +202,87 @@ function useTypewriter(texts, { typeSpeed = 55, deleteSpeed = 30, pauseMs = 1800
 }
 
 /* ════════════════════════════════════════════════════════════════
-   5. MARKDOWN RENDERER — renders ** bold **, # headers, - bullets
+   5. MARKDOWN + MATH RENDERER
+   Renders ** bold **, # headers, - bullets, `code`, ~~strike~~,
+   *italics*, $inline math$, and $$block math$$ (via KaTeX).
 ════════════════════════════════════════════════════════════════ */
+
+// ── KaTeX block/inline components ───────────────────────────────
+function MathBlock({ tex }) {
+  const html = React.useMemo(() => {
+    try {
+      return katex.renderToString(tex, {
+        displayMode: true,
+        throwOnError: false,
+        output: 'html',
+      });
+    } catch {
+      return tex;
+    }
+  }, [tex]);
+  return (
+    <div
+      className="my-3 overflow-x-auto katex-block-wrap"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function MathInline({ tex }) {
+  const html = React.useMemo(() => {
+    try {
+      return katex.renderToString(tex, {
+        displayMode: false,
+        throwOnError: false,
+        output: 'html',
+      });
+    } catch {
+      return tex;
+    }
+  }, [tex]);
+  return (
+    <span
+      className="katex-inline-wrap"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 function renderMarkdown(text) {
   if (!text) return null;
 
   const elements = [];
-  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  // Matches fenced code blocks (```lang\n...\n```) OR block math ($$...$$)
+  const blockRegex = /```(\w*)\n?([\s\S]*?)```|\$\$([\s\S]*?)\$\$/g;
   let lastIndex = 0;
   let match;
   let blockIndex = 0;
 
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    const [fullMatch, lang, code] = match;
+  while ((match = blockRegex.exec(text)) !== null) {
+    const [fullMatch, lang, code, mathBlock] = match;
     const textBefore = text.slice(lastIndex, match.index);
 
     if (textBefore.trim()) {
       elements.push(...renderMarkdownLines(textBefore, `pre-${blockIndex}`));
     }
 
-    elements.push(
-      <div key={`code-${blockIndex}`} className="my-3">
-        <CodeBlock
-          language={lang || 'text'}
-          filename={lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code'}
-          code={code.replace(/\n$/, '')}
-        />
-      </div>
-    );
+    if (mathBlock !== undefined) {
+      // Block math: $$ ... $$
+      elements.push(
+        <MathBlock key={`math-${blockIndex}`} tex={mathBlock.trim()} />
+      );
+    } else {
+      // Fenced code block
+      elements.push(
+        <div key={`code-${blockIndex}`} className="my-3">
+          <CodeBlock
+            language={lang || 'text'}
+            filename={lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code'}
+            code={code.replace(/\n$/, '')}
+          />
+        </div>
+      );
+    }
 
     lastIndex = match.index + fullMatch.length;
     blockIndex++;
@@ -243,7 +297,7 @@ function renderMarkdown(text) {
 }
 
 // Handles H1/H2/H3/bullets/numbered lists/paragraphs for a chunk of plain text.
-// keyPrefix keeps React keys unique across multiple chunks split around code blocks.
+// keyPrefix keeps React keys unique across multiple chunks split around code/math blocks.
 function renderMarkdownLines(text, keyPrefix) {
   const lines = text.split('\n');
   const elements = [];
@@ -256,7 +310,7 @@ function renderMarkdownLines(text, keyPrefix) {
     if (line.startsWith('# ')) {
       elements.push(
         <h1 key={`${keyPrefix}-${i}`} className="text-2xl font-semibold text-white/95 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.02em' }}>
-          {parseBold(line.slice(2))}
+          {parseInline(line.slice(2))}
         </h1>
       );
     }
@@ -264,7 +318,7 @@ function renderMarkdownLines(text, keyPrefix) {
     else if (line.startsWith('## ')) {
       elements.push(
         <h2 key={`${keyPrefix}-${i}`} className="text-lg font-semibold text-white/90 mt-5 mb-2 first:mt-0" style={{ letterSpacing: '-0.01em' }}>
-          {parseBold(line.slice(3))}
+          {parseInline(line.slice(3))}
         </h2>
       );
     }
@@ -272,7 +326,7 @@ function renderMarkdownLines(text, keyPrefix) {
     else if (line.startsWith('### ')) {
       elements.push(
         <h3 key={`${keyPrefix}-${i}`} className="text-base font-semibold text-white/85 mt-4 mb-1.5 first:mt-0">
-          {parseBold(line.slice(4))}
+          {parseInline(line.slice(4))}
         </h3>
       );
     }
@@ -283,7 +337,7 @@ function renderMarkdownLines(text, keyPrefix) {
         bullets.push(
           <li key={`${keyPrefix}-${i}`} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
             <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
-            <span>{parseBold(lines[i].slice(2))}</span>
+            <span>{parseInline(lines[i].slice(2))}</span>
           </li>
         );
         i++;
@@ -299,7 +353,7 @@ function renderMarkdownLines(text, keyPrefix) {
         items.push(
           <li key={`${keyPrefix}-${i}`} className="flex gap-2.5 text-white/75 text-[15px] leading-relaxed">
             <span className="text-white/35 text-sm tabular-nums shrink-0 min-w-[1.2rem] text-right">{num}.</span>
-            <span>{parseBold(lines[i].replace(/^\d+\.\s/, ''))}</span>
+            <span>{parseInline(lines[i].replace(/^\d+\.\s/, ''))}</span>
           </li>
         );
         i++;
@@ -316,7 +370,7 @@ function renderMarkdownLines(text, keyPrefix) {
     else {
       elements.push(
         <p key={`${keyPrefix}-${i}`} className="text-white/80 text-[15px] leading-relaxed">
-          {parseBold(line)}
+          {parseInline(line)}
         </p>
       );
     }
@@ -327,11 +381,54 @@ function renderMarkdownLines(text, keyPrefix) {
   return elements;
 }
 
-function parseBold(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+// Parses inline formatting within a single line/segment of text:
+// **bold**, `inline code`, ~~strikethrough~~, $inline math$, *italics*.
+// Order in the split regex matters — bold (**) must be matched before
+// single-* italics, or the italics pattern would eat into bold markers.
+function parseInline(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|~~[^~]+~~|\$[^$\n]+\$|\*[^*\n]+\*)/g);
+
   return parts.map((part, idx) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={idx} className="text-white/95 font-semibold">{part.slice(2, -2)}</strong>;
+    if (!part) return null;
+
+    // Bold: **text**
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 3) {
+      return (
+        <strong key={idx} className="text-white/95 font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    // Strikethrough: ~~text~~
+    if (part.startsWith('~~') && part.endsWith('~~') && part.length > 3) {
+      return (
+        <del key={idx} className="text-white/45 line-through">
+          {part.slice(2, -2)}
+        </del>
+      );
+    }
+    // Inline code: `text`
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 1) {
+      return (
+        <code
+          key={idx}
+          className="px-1.5 py-0.5 rounded-md bg-white/10 text-emerald-300 text-[0.9em] font-mono"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    // Inline math: $text$
+    if (part.startsWith('$') && part.endsWith('$') && part.length > 1) {
+      return <MathInline key={idx} tex={part.slice(1, -1)} />;
+    }
+    // Italics: *text*
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 1) {
+      return (
+        <em key={idx} className="italic text-white/85">
+          {part.slice(1, -1)}
+        </em>
+      );
     }
     return <React.Fragment key={idx}>{part}</React.Fragment>;
   });
@@ -893,6 +990,7 @@ function InputBox({ value, onChange, onSend, placeholder, large = false, activeM
 
         <div className="flex items-center gap-2">
           <FloatingActionButton
+          
             size="sm"
             label="Quick Tools"
             positionClassName="relative"
@@ -1010,8 +1108,12 @@ function AIMessage({ msg, thinkingMs, onRegenerate, isStarred = false, onStar })
     // Strip markdown formatting before reading aloud
     const cleanText = (msg.text || '')
       .replace(/```[\s\S]*?```/g, 'code block omitted.')
+      .replace(/\$\$[\s\S]*?\$\$/g, 'a math expression.')
+      .replace(/\$[^$\n]+\$/g, 'a math expression.')
       .replace(/#{1,6}\s?/g, '')
       .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/~~(.*?)~~/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
       .replace(/[-•]\s/g, ', ')
       .replace(/\n+/g, ' ')
@@ -2213,6 +2315,12 @@ export default function ConversationPage() {
     @media (prefers-reduced-motion: reduce) {
       .cp-exit-logo, .cp-exit-title, .cp-exit-input, .cp-exit-extras { animation: none; opacity: 0; }
     }
+    /* ── KaTeX dark-theme overrides ── */
+    .katex { color: rgba(255,255,255,0.92); font-size: 1.05em; }
+    .katex-block-wrap { padding: 10px 6px; }
+    .katex-block-wrap .katex-display { margin: 0.4em 0; }
+    .katex-inline-wrap .katex { font-size: 1em; }
+    .katex-error { color: #ff7070; }
   `;
 
   return (

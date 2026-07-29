@@ -113,7 +113,6 @@ export default function LandingPage() {
             transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          {/* Top Section — Signature Logo, moved down a bit */}
           <div className="w-full flex justify-center pt-10 sm:pt-20 pointer-events-auto translate-y-20">
             <Signature
               text="Pyrobot"
@@ -157,7 +156,6 @@ export default function LandingPage() {
           )}
         </div>
 
-        {/* Layer 5 — "Start for Free" button, centered on the page */}
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{
@@ -201,8 +199,6 @@ export default function LandingPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── How It Works section — now guaranteed to render right after
-           the full-viewport hero instead of being squashed to zero height ── */}
       <HowItWorks />
     </div>
   );
